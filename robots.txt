@@ -7,4 +7,4 @@ Disallow: /js/
 Disallow: /css/
 Disallow: /vendor/
 Disallow: /content.json
-Disallow: /404.html
+Sitemap: https://blog.hanbaobo.cn/sitemap.xml
