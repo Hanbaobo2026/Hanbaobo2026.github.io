@@ -10,7 +10,8 @@
 
   var D = {
     imgDir: '/img/pet/',
-    sprite: { file: 'hanbaobo', ext: 'webp', widths: [512, 256, 128], w: 1164, h: 2001 },
+    sprite: { file: 'hanbaobo', ext: 'webp', widths: [512, 256, 128], w: 1164, h: 2019,
+      cat: [790, 1545, 980, 1775] },
     mobile: false,
     mobileMax: 768,
     paperWidth: 880,
@@ -22,6 +23,11 @@
     blinkMax: 6800,
     progress: true,
     progressAt: [25, 50, 75, 100],
+    bar: true,
+    resume: true,
+    resumeAfter: 5200,
+    meow: true,
+    dates: null,
     copied: true,
     lateNight: true,
     stayReminder: 20,
@@ -41,6 +47,9 @@
       longStay: ['都待了 20 分钟啦，起来走两步？', '坐太久啦，站起来伸个懒腰~'],
       top: ['带你回顶部！', '嗖——回顶上去了'],
       first: ['第一次见？我是汉堡的小跟班，双击我能回顶哦'],
+      meow: ['喵~', '喵？', '喵喵！', '喵呜——'],
+      resume: ['上次读到 {pct}% 了，点这里接着看 →', '接着上次的 {pct}% 继续？点我'],
+      resumeGo: ['好嘞，接着看~', '翻回去了，继续~'],
       byType: {
         post: ['来读文章啦？我陪你~'],
         home: ['随便逛逛吧~'],
@@ -74,9 +83,11 @@
   var recallBtn = document.getElementById('pet-recall');
   var face = root.querySelector('.pet__face');
   var fx = root.querySelector('.pet__fx');
+  var bar = root.querySelector('.pet__bar');
+  var barFill = bar ? bar.querySelector('b') : null;
   if (!body || !img || !bubble || !lean || !closeBtn) { return; }
 
-  var K = { pos: 'pet:pos', hide: 'pet:hide', first: 'pet:first' };
+  var K = { pos: 'pet:pos', hide: 'pet:hide', first: 'pet:first', scroll: 'pet:scroll:' };
 
   function store(key, val) {
     try {
@@ -167,6 +178,8 @@
 
   function sayRaw(text, ms) {
     if (!text) { return; }
+    /* 别的台词盖过来时，续读提示就不再可点了 */
+    if (resumeOffer && text !== resumeText) { dropResume(); }
     bubble.textContent = text;
     root.classList.add('is-talking');
     window.clearTimeout(talkT);
@@ -272,15 +285,16 @@
   var GLYPHS = ['\u2726', '\u2665', '\u2727', '\u2661', '\u2736'];
   var COLORS = ['#ff8fb1', '#ffcf5c', '#ffa8c4', '#8fc8ff'];
 
-  function sparkle() {
+  function sparkle(glyphs) {
     if (reduce || !fx || fx.childNodes.length > 36) { return; }
+    var pool = (glyphs && glyphs.length) ? glyphs : GLYPHS;
     var base = petHeight();
     for (var i = 0; i < 6; i++) {
       var el = document.createElement('i');
       var ang = (-160 + Math.random() * 140) * Math.PI / 180;   /* 向上扇形 */
       var dist = base * (0.14 + Math.random() * 0.22);
       el.className = 'pet__spark';
-      el.textContent = GLYPHS[i % GLYPHS.length];
+      el.textContent = pool[i % pool.length];
       el.style.left = (30 + Math.random() * 40).toFixed(1) + '%';
       el.style.top = (12 + Math.random() * 16).toFixed(1) + '%';
       el.style.setProperty('--x', (Math.cos(ang) * dist).toFixed(1) + 'px');
@@ -312,6 +326,31 @@
     say(pick(cfg.lines.poke));
     resetIdle();
     try { window.dispatchEvent(new CustomEvent('pet:poke')); } catch (e) {}
+  }
+
+  /* ---- 右边那只小灰猫：点到它，喵一声 ---- */
+  var catBox = cfg.sprite.cat;
+
+  function onCat(e) {
+    if (!cfg.meow || !catBox || catBox.length < 4 || !e) { return false; }
+    var r = body.getBoundingClientRect();
+    if (!r.width || !r.height) { return false; }
+    var x = (e.clientX - r.left) / r.width * (cfg.sprite.w || 1);
+    var y = (e.clientY - r.top) / r.height * (cfg.sprite.h || 1);
+    return x >= catBox[0] && x <= catBox[2] && y >= catBox[1] && y <= catBox[3];
+  }
+
+  function meow() {
+    var now = Date.now();
+    if (now - lastPokeAt < 320) { return; }
+    lastPokeAt = now;
+    if (sleeping) { wake(false); }
+    pulse('is-hop', 560);
+    sparkle(['\u266a', '\u266b', '\u2665']);       /* 音符 + 心心 */
+    say(pick(cfg.lines.meow) || '喵~', 1900);
+    st.meow++;
+    resetIdle();
+    try { window.dispatchEvent(new CustomEvent('pet:meow')); } catch (err) {}
   }
   /* ---- 单击 / 双击：单击延迟 240ms 再执行，双击回顶时直接取消，
      不会出现“先戳一下、再回顶”的抢戏 ---- */
@@ -381,7 +420,7 @@
     else if (cx > W * 0.85) { setPos(W - s.w - 4, pos.y); }
   }
 
-  function onUp() {
+  function onUp(e) {
     if (!dragging) { return; }
     dragging = false;
     resetIdle();
@@ -390,6 +429,8 @@
       snapEdge();
       say(pick(cfg.lines.drop), 2200);
       store(K.pos, JSON.stringify(pos));
+    } else if (onCat(e)) {
+      meow();
     } else {
       tap();
     }
@@ -527,7 +568,8 @@
 
   var st = {
     type: '', greeted: '', pct: 0, fired: [],
-    copied: 0, top: 0, lateNight: false, stay: false
+    copied: 0, top: 0, lateNight: false, stay: false,
+    resume: 0, fest: '', meow: 0
   };
 
   /* 页面类型：文章 / 首页列表 / 归档列表 / 普通页面（主题 a4-plus 的结构） */
@@ -561,12 +603,148 @@
     return typeof val === 'string' ? val : '';
   }
 
-  /* ---- 阅读进度：只在文章页，跨过一个刻度说一句 ---- */
+  /* ---- 脚下的进度线：只在文章页，长度跟着阅读进度；看完变绿闪两下 ---- */
+  var barPct = -1;
+  var barDone = false;
+
+  function setBar(pct) {
+    if (!cfg.bar || !bar) { return; }
+    var p = Math.max(0, Math.min(100, pct || 0));
+    if (p === barPct) { return; }
+    barPct = p;
+    bar.style.setProperty('--pet-p', (p / 100).toFixed(4));
+    root.classList.toggle('has-bar', p >= 3);
+    /* 滚回上面再往下读，绿色收回去；真的到底才闪 */
+    if (p >= 100) {
+      if (!barDone) { barDone = true; root.classList.add('is-done'); }
+    } else if (barDone && p < 96) {
+      barDone = false;
+      root.classList.remove('is-done');
+    }
+  }
+
+  /* ---- 续读位置：文章页把“读到哪”存起来，下次问一句要不要接着看 ---- */
+  var resumeOffer = null;         /* { y, pct } */
+  var resumeText = '';
+  var resumeT = 0, resumeSaveT = 0, resumeAt = 0;
+
+  function resumeKey() { return K.scroll + window.location.pathname; }
+
+  function scrollMax() {
+    var doc = document.documentElement;
+    var b = document.body;
+    return Math.max(doc.scrollHeight, b ? b.scrollHeight : 0) - window.innerHeight;
+  }
+
+  function dropResume() {
+    if (!resumeOffer) { return; }
+    resumeOffer = null;
+    resumeText = '';
+    window.clearTimeout(resumeT);
+    root.classList.remove('is-resume');
+  }
+
+  function saveResume() {
+    resumeSaveT = 0;
+    if (!cfg.resume || pageType() !== 'post') { return; }
+    var max = scrollMax();
+    if (max < 360) { return; }
+    var y = scrollTopNow();
+    var pct = Math.round(y / max * 100);
+    try {
+      if (pct >= 95) { window.localStorage.removeItem(resumeKey()); return; }
+      if (pct < 5) { return; }
+      window.localStorage.setItem(resumeKey(), JSON.stringify({ y: Math.round(y), pct: pct, t: Date.now() }));
+    } catch (e) {}
+  }
+
+  function scheduleResumeSave() {
+    if (resumeSaveT) { return; }
+    resumeSaveT = window.setTimeout(saveResume, 520);
+  }
+
+  /* ?pet_resume=42 假装上次读到 42%；?pet_resume=0 关掉 */
+  function resumeRecord() {
+    var fake = qp('pet_resume');
+    if (fake !== '') {
+      var n = parseFloat(fake);
+      if (!(n > 0)) { return null; }
+      n = Math.min(n, 94);
+      return { y: Math.round(scrollMax() * n / 100), pct: Math.round(n), t: Date.now() };
+    }
+    try { return JSON.parse(store(resumeKey()) || 'null'); } catch (e) { return null; }
+  }
+
+  function initResume() {
+    if (!cfg.resume || pageType() !== 'post') { return; }
+    window.addEventListener('scroll', function () {
+      if (resumeOffer && Math.abs(scrollTopNow() - resumeAt) > 60) { dropResume(); }
+      scheduleResumeSave();
+    }, { passive: true });
+    window.addEventListener('pagehide', saveResume);
+
+    var rec = resumeRecord();
+    if (!rec || typeof rec.y !== 'number' || !(rec.pct >= 5) || rec.pct >= 95) { return; }
+    if (rec.t && Date.now() - rec.t > 30 * 24 * 3600 * 1000) { return; }
+    if (scrollTopNow() > 160) { return; }
+    window.setTimeout(function () {
+      if (!visible() || resumeOffer || scrollTopNow() > 160) { return; }
+      var text = pickOne(cfg.lines.resume);
+      if (!text) { return; }
+      resumeOffer = { y: Math.round(rec.y), pct: Math.round(rec.pct) };
+      resumeText = text.replace('{pct}', rec.pct);
+      resumeAt = scrollTopNow();
+      st.resume = resumeOffer.pct;
+      root.classList.add('is-resume');
+      sayRaw(resumeText, 9000);
+      resumeT = window.setTimeout(dropResume, 9000);
+    }, Math.max(cfg.resumeAfter || 0, 800));
+  }
+
+  /* 点气泡：跳回上次的位置（气泡只有在这个提示里可点） */
+  bubble.addEventListener('click', function (e) {
+    if (!resumeOffer) { return; }
+    e.preventDefault();
+    e.stopPropagation();
+    var y = resumeOffer.y;
+    dropResume();
+    say(pick(cfg.lines.resumeGo) || '接着看~', 2200);
+    if (reduce) { window.scrollTo(0, y); }
+    else {
+      try { window.scrollTo({ top: y, behavior: 'smooth' }); }
+      catch (err) { window.scrollTo(0, y); }
+    }
+    resetIdle();
+  });
+
+  /* ---- 节日彩蛋：cfg.dates 里配了 MM-DD 的，命中就说一句；?pet_date=12-25 可测 ---- */
+  function initFest() {
+    var dates = cfg.dates;
+    if (!dates || typeof dates !== 'object') { return; }
+    var md = qp('pet_date');
+    if (!md) {
+      var d = new Date();
+      md = ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    }
+    var line = pickOne(dates[md]);
+    if (!line) { return; }
+    if (!sessionOnce('pet:fest:' + md)) { return; }
+    st.fest = md;
+    window.setTimeout(function () {
+      if (!visible()) { return; }
+      say(line, 5200);
+      sparkle();
+    }, 2600);
+  }
+
+  /* ---- 阅读进度：只在文章页，跨过一个刻度说一句；脚下那条线跟着走 ---- */
   function initProgress() {
-    if (!cfg.progress || pageType() !== 'post') { return; }
-    var marks = (cfg.progressAt || []).slice().sort(function (a, b) { return a - b; });
-    var lines = cfg.lines.progress || [];
-    if (!marks.length || !lines.length) { return; }
+    if (pageType() !== 'post') { return; }
+    var wantSay = !!cfg.progress;
+    var marks = wantSay ? (cfg.progressAt || []).slice().sort(function (a, b) { return a - b; }) : [];
+    var lines = wantSay ? (cfg.lines.progress || []) : [];
+    var wantBar = !!(cfg.bar && bar);
+    if (!wantBar && (!marks.length || !lines.length)) { return; }
     var raf = 0, timer = 0;
 
     function scrollY() { return window.pageYOffset || document.documentElement.scrollTop || 0; }
@@ -576,11 +754,13 @@
       var doc = document.documentElement;
       var bodyEl = document.body;
       var max = Math.max(doc.scrollHeight, bodyEl ? bodyEl.scrollHeight : 0) - window.innerHeight;
-      if (max < 360) { return; }                       /* 太短的页面没有“进度”可言 */
+      if (max < 360) { setBar(0); return; }            /* 太短的页面没有“进度”可言 */
       var y = scrollY();
       var pct = Math.min(100, Math.max(0, y / max * 100));
       st.pct = Math.round(pct);
+      setBar(pct);
 
+      if (!marks.length || !lines.length) { return; }
       var hit = -1, i;
       for (i = 0; i < marks.length; i++) {
         if (st.fired.indexOf(marks[i]) !== -1 || pct < marks[i]) { continue; }
@@ -715,6 +895,8 @@
 
   function initPageEvents() {
     initProgress();
+    initResume();
+    initFest();
     initCopy();
     initLateNight();
     initStay();
@@ -774,6 +956,7 @@
     dragging = false;
     sleeping = false;
     wasAsleep = false;
+    dropResume();
     window.clearTimeout(talkT);
     window.clearTimeout(tapT);
     window.clearTimeout(recallLine);
@@ -813,6 +996,7 @@
   window.pet = {
     say: say,
     poke: poke,
+    meow: meow,
     sleep: doze,
     wake: function () { return wake(true); },
     blink: blinkOnce,
@@ -824,10 +1008,15 @@
     refresh: function () { applyNarrow(); updateSprite(); relayout(); },
     pageType: pageType,
     progress: function () { return { pct: st.pct, fired: st.fired.slice() }; },
+    bar: function () { return { pct: barPct, done: barDone }; },
+    resume: function () { return resumeOffer ? { y: resumeOffer.y, pct: resumeOffer.pct } : null; },
     state: function () {
       return {
         type: st.type, greeted: st.greeted, pct: st.pct, fired: st.fired.slice(),
         copied: st.copied, top: st.top, lateNight: st.lateNight, stay: st.stay,
+        resume: st.resume, fest: st.fest, meow: st.meow,
+        bar: barPct, barDone: barDone,
+        offered: !!resumeOffer,
         text: bubble.textContent, talking: root.classList.contains('is-talking'),
         pos: { x: pos.x, y: pos.y }, sprite: spriteW, dragging: dragging,
         active: active, recall: !!(recallBtn && !recallBtn.hidden),
