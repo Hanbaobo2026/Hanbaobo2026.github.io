@@ -70,6 +70,8 @@
   var bubble = root.querySelector('.pet__bubble');
   var lean = root.querySelector('.pet__lean');
   var closeBtn = root.querySelector('.pet__close');
+  /* 关掉后浮在右下角的召回按钮（老缓存页面里可能没有，全部做空判断） */
+  var recallBtn = document.getElementById('pet-recall');
   var face = root.querySelector('.pet__face');
   var fx = root.querySelector('.pet__fx');
   if (!body || !img || !bubble || !lean || !closeBtn) { return; }
@@ -87,9 +89,9 @@
   /* ?pet=1 强制召回 */
   var forced = /[?&]pet=1(?:&|$)/.test(window.location.search);
   if (forced) { store(K.hide, '0'); }
-  if (!forced && store(K.hide) === '1') { return; }
+  /* 手机且没开 pet.mobile：桌宠整只不参与（连召回按钮也不出现） */
   if (isNarrow && !cfg.mobile) { return; }
-  if (isNarrow && cfg.mobile) { root.classList.add('pet--mobile'); }
+  root.classList.toggle('pet--mobile', isNarrow && !!cfg.mobile);
 
   /* pet.excludePaths：按路径前缀排除 */
   var exclude = cfg.excludePaths || [];
@@ -431,13 +433,20 @@
     raf = window.requestAnimationFrame(follow);
   }, { passive: true });
 
-  /* ---- 关闭 ---- */
+  /* ---- 关闭：说完告别再收起，右下角留召回按钮 ---- */
   closeBtn.addEventListener('click', function (e) {
     e.stopPropagation();
-    store(K.hide, '1');
-    say(pick(cfg.lines.leave), 2400);
-    window.setTimeout(function () { root.classList.remove('pet--on'); }, 2400);
+    say(pick(cfg.lines.leave), 2000);
+    window.setTimeout(function () { deactivate({ save: true, pill: true }); }, 2000);
   });
+
+  /* ---- 召回按钮：任何页面刷新后都在，点了就回来 ---- */
+  if (recallBtn) {
+    recallBtn.addEventListener('click', function () {
+      store(K.hide, '0');
+      recall();
+    });
+  }
 
   /* ---- 后台标签页：停掉眨眼/计时，回来再续 ---- */
   document.addEventListener('visibilitychange', function () {
@@ -461,11 +470,9 @@
   window.addEventListener('storage', function (e) {
     if (e.key !== K.hide) { return; }
     if (e.newValue === '1') {
-      root.classList.remove('pet--on');
+      deactivate({ pill: true });
     } else if (e.newValue === '0' && !(isNarrow && !cfg.mobile)) {
-      root.classList.add('pet--on');
-      resetIdle();
-      scheduleBlink();
+      recall();
     }
   });
 
@@ -479,19 +486,24 @@
     isNarrow = narrow;
     root.classList.toggle('pet--mobile', narrow && !!cfg.mobile);
     if (narrow && !cfg.mobile) {
-      root.classList.remove('pet--on');
-    } else if (!narrow && store(K.hide) !== '1') {
-      root.classList.add('pet--on');
-      resetIdle();
-      scheduleBlink();
+      /* 手机上本来就不放桌宠，召回按钮也一起收起 */
+      deactivate({});
+    } else if (!narrow) {
+      if (store(K.hide) === '1') { setRecall(true); }
+      else { activate(); }
     }
   }
 
-  /* 视口/断点变化后重新摆位：自定义位置就守住，否则回到默认站位 */
+  /* 视口/断点变化后重新摆位：自定义位置放得下就守住，放不下（比如从桌面换到手机）回默认站位 */
   function relayout() {
     if (!root.classList.contains('pet--on')) { return; }
-    if (custom) { setPos(pos.x, pos.y); }
-    else { var h = home(); setPos(h.x, h.y); }
+    var s = size();
+    if (custom && pos.x <= window.innerWidth - s.w - 4) { setPos(pos.x, pos.y); }
+    else {
+      custom = false;
+      var h = home();
+      setPos(h.x, h.y);
+    }
   }
 
   window.addEventListener('resize', function () {
@@ -717,23 +729,78 @@
     });
   }
 
-  /* ---- 启动 ---- */
-  function boot() {
+  /* ================= 显隐：关掉后留一个召回按钮，随时叫回来 ================= */
+  var active = false;
+  var recallLine = 0;
+
+  function setRecall(show) {
+    if (!recallBtn) { return; }
+    recallBtn.hidden = !show;
+  }
+
+  /* 按当前视口落位：存过位置、且当前屏幕放得下就守住，否则回到默认站位 */
+  function placeInitial() {
     var saved = null;
     try { saved = JSON.parse(store(K.pos) || 'null'); } catch (e) {}
-    root.classList.add('pet--on');
     var h = home();
-    var useSaved = saved && typeof saved.x === 'number' && typeof saved.y === 'number';
+    var s = size();
+    var useSaved = saved && typeof saved.x === 'number' && typeof saved.y === 'number' &&
+      saved.x <= window.innerWidth - s.w - 4;
     custom = !!useSaved;
     root.style.transition = 'none';
     setPos(useSaved ? saved.x : h.x, useSaved ? saved.y : h.y);
     void root.offsetWidth;
     root.style.transition = '';
-    var greet = greetLine();
-    window.setTimeout(function () { say(greet, 4600); }, 1100);
+  }
+
+  function activate(line, delay) {
+    if (active) { return; }
+    active = true;
+    setRecall(false);
+    root.classList.add('pet--on');
+    placeInitial();
     resetIdle();
     scheduleBlink();
+    if (line) {
+      window.clearTimeout(recallLine);
+      recallLine = window.setTimeout(function () { say(line); }, delay || 900);
+    }
+  }
+
+  /* save: 写入 pet:hide；pill: 是否留下召回按钮 */
+  function deactivate(opt) {
+    opt = opt || {};
+    active = false;
+    dragging = false;
+    sleeping = false;
+    wasAsleep = false;
+    window.clearTimeout(talkT);
+    window.clearTimeout(tapT);
+    window.clearTimeout(recallLine);
+    window.clearTimeout(sleepT);
+    window.clearTimeout(blinkT);
+    window.clearTimeout(blinkHoldT);
+    root.classList.remove('pet--on', 'pet--sleep', 'is-blink', 'is-talking', 'is-dragging');
+    if (opt.save) { store(K.hide, '1'); }
+    setRecall(!!opt.pill);
+  }
+
+  /* 召回：还没问候过就走首访 / 页面类型问候，否则用 back 台词 */
+  function recall() {
+    if (active) { return; }
+    activate(st.greeted ? pick(cfg.lines.back) : greetLine(), 260);
+    try { window.dispatchEvent(new CustomEvent('pet:show')); } catch (e) {}
+  }
+
+  /* ---- 启动 ---- */
+  function boot() {
     initPageEvents();
+    /* 之前点过关闭：不出现，但右下角留一个召回按钮，刷新 / 换页也还在 */
+    if (store(K.hide) === '1') {
+      deactivate({ pill: true });
+      return;
+    }
+    activate(greetLine(), 1100);
   }
 
   if (document.readyState === 'loading') {
@@ -751,8 +818,8 @@
     blink: blinkOnce,
     sparkle: sparkle,
     isSleeping: function () { return sleeping; },
-    show: function () { root.classList.add('pet--on'); store(K.hide, '0'); resetIdle(); },
-    hide: function () { root.classList.remove('pet--on'); store(K.hide, '1'); },
+    show: function () { store(K.hide, '0'); recall(); },
+    hide: function () { deactivate({ save: true, pill: true }); },
     top: goTop,
     refresh: function () { applyNarrow(); updateSprite(); relayout(); },
     pageType: pageType,
@@ -762,7 +829,9 @@
         type: st.type, greeted: st.greeted, pct: st.pct, fired: st.fired.slice(),
         copied: st.copied, top: st.top, lateNight: st.lateNight, stay: st.stay,
         text: bubble.textContent, talking: root.classList.contains('is-talking'),
-        pos: { x: pos.x, y: pos.y }, sprite: spriteW, dragging: dragging
+        pos: { x: pos.x, y: pos.y }, sprite: spriteW, dragging: dragging,
+        active: active, recall: !!(recallBtn && !recallBtn.hidden),
+        mobile: root.classList.contains('pet--mobile'), narrow: isNarrow
       };
     },
     cfg: cfg

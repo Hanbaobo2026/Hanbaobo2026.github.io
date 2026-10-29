@@ -124,7 +124,14 @@
   </url>
   
   <url>
-    <loc>https://blog.hanbaobo.cn/tags/%E6%97%A5%E5%B8%B8/</loc>
+    <loc>https://blog.hanbaobo.cn/tags/%E7%94%BB%E7%94%BB/</loc>
+    <lastmod>2026-10-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.hanbaobo.cn/tags/%E7%BB%98%E7%94%BB/</loc>
     <lastmod>2026-10-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -138,14 +145,7 @@
   </url>
   
   <url>
-    <loc>https://blog.hanbaobo.cn/tags/%E7%94%BB%E7%94%BB/</loc>
-    <lastmod>2026-10-29</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://blog.hanbaobo.cn/tags/%E7%BB%98%E7%94%BB/</loc>
+    <loc>https://blog.hanbaobo.cn/tags/%E6%97%A5%E5%B8%B8/</loc>
     <lastmod>2026-10-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
