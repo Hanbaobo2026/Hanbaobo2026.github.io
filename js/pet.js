@@ -10,7 +10,7 @@
 
   var D = {
     imgDir: '/img/pet/',
-    sprite: { file: 'hanbaobo', ext: 'webp', widths: [512, 256, 128], w: 1164, h: 2019,
+    sprite: { file: 'hanbaobo', ext: 'webp', widths: [512, 256, 128], w: 1164, h: 2055,
       cat: [790, 1545, 980, 1775] },
     mobile: false,
     mobileMax: 768,
