@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  viewport-fit=cover" name="viewport" />
+    <meta name="keywords" content="CTF,题解,Windows,逆向,内核,脆皮大学生Pro Max,AI看了都沉默,易燃易爆易炸毛,高敏感低配置" />
+    <meta name="description" content="本篇文章《Ironclad 驱动逆向与漏洞分析》由Hanbaobo于2026-11-02 10:30:00发布，文章标签:CTF、题解、Windows、逆向、内核，归属WP分类，共计41413个字符，预计阅读时间83分钟。 " />
+    <meta name="hexo-theme-a4-plus" content="v1.0.1" />
+    <link rel="icon" href="/img/favicon-burger.ico">
+    <link rel="alternate" type="application/atom+xml" title="Hanbaobo&#39;s Blog" href="/atom.xml">
+    <title>Ironclad 驱动逆向与漏洞分析_Hanbaobo&#39;s Blog</title>
+
+    
+        
+<link rel="stylesheet" href="/css/reset.css">
+
+        
+<link rel="stylesheet" href="/css/markdown.css">
+
+        
+<link rel="stylesheet" href="/css/fonts.css">
+ 
+         <!--注意：首页既不是post也不是page-->
+        
+    
+    
+    
+<link rel="stylesheet" href="/css/ui.css">
+ 
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <style>
+        
+        
+    </style>
+    
+<meta name="generator" content="Hexo 6.3.0"><link rel="stylesheet" href="/css/pet.css?v=mvtc2so5"></head>
+    
+    <body>
+        <div class="paper">
+            
+            
+            
+            
+                <div class="shadow-drop-2-top paper-main">
+                    <div class="header">
+    <div class="header-container">
+        <div class="header-content">
+            <a class="logo" href="/">🎨Hanbaobo&#39;s Blog</a> 
+            <span class="description"></span> 
+        </div>
+    </div>
+    
+   
+    <ul class="nav">
+        
+            
+                
+                    <li><a href="/">首页</a></li>
+                
+            
+        
+            
+                
+                    <li><a href="/categories/">分类</a></li>
+                
+            
+        
+            
+                
+                    <li><a href="/about/">关于</a></li>
+                
+            
+        
+    </ul>
+</div> 
+        
+                    
+                    
+
+                    
+                    
+                    
+                    <!--说明是文章post页面-->
+                    
+                        <div class="post-main">
+    
+        <div class="post-main-title">
+            Ironclad 驱动逆向与漏洞分析
+        </div>
+        <div class="post-meta">
+            <i>
+                
+                    
+                        <span class="category">归属分类:
+                            
+                            
+                                <a href='/categories/WP/'>
+                                    WP
+                                </a>
+                            
+                        </span>
+                    
+                    
+                        <span class="tags">文章标签:
+                            
+                            
+                                <a href='/tags/CTF/'>
+                                    CTF
+                                </a>
+                            
+                                <a href='/tags/%E9%A2%98%E8%A7%A3/'>
+                                    题解
+                                </a>
+                            
+                                <a href='/tags/Windows/'>
+                                    Windows
+                                </a>
+                            
+                                <a href='/tags/%E9%80%86%E5%90%91/'>
+                                    逆向
+                                </a>
+                            
+                                <a href='/tags/%E5%86%85%E6%A0%B8/'>
+                                    内核
+                                </a>
+                            
+                        </span>
+                    
+                
+            </i>
+        </div>
+        <div class="post-meta">
+            <i>
+            <span>
+                本文由
+                
+                    <span> Hanbaobo</span>
+                
+            </span>
+            <span>于2026-11-02 22:30:00发布</span>
+            
+            
+                <span>，共计
+                    <span>41413</span>
+                    个字符，预计阅读时间
+                    
+                    83
+                    分钟。 
+                </span>
+            
+            </i>
+        </div>
+    
+
+    <div class="post-md">
+        
+            
+                <ol class="post-toc"><li class="post-toc-item post-toc-level-1"><a class="post-toc-link" href="#Ironclad-ironclad-sys-%E2%80%94-reverse-engineering-notes-and-vulnerability-analysis"><span class="post-toc-text">Ironclad (ironclad.sys) — reverse engineering notes and vulnerability analysis</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#1-Binary-facts"><span class="post-toc-text">1. Binary facts</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#2-Entry-points"><span class="post-toc-text">2. Entry points</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#3-IOCTL-surface"><span class="post-toc-text">3. IOCTL surface</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-1-Ring-creation-0x222400"><span class="post-toc-text">3.1 Ring creation (0x222400)</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#3-2-Command-submission-0x222404"><span class="post-toc-text">3.2 Command submission (0x222404)</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#4-Object-model"><span class="post-toc-text">4. Object model</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#5-Command-table-kdp-0x50-built-by-sub-1400014F0"><span class="post-toc-text">5. Command table (.kdp+0x50, built by sub_1400014F0)</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#6-Integrity-mechanisms-important-for-exploitation"><span class="post-toc-text">6. Integrity mechanisms (important for exploitation)</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#7-The-bug-stale-bitmap-pointer-cached-in-a-transaction-%E2%86%92-controlled-UAF-write"><span class="post-toc-text">7. The bug: stale bitmap pointer cached in a transaction → controlled UAF write</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#7-1-Create-transaction-sub-140004470-op-0x0A"><span class="post-toc-text">7.1 Create transaction (sub_140004470, op 0x0A)</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#7-2-Resize-sub-1400032C0-op-0x06"><span class="post-toc-text">7.2 Resize (sub_1400032C0, op 0x06)</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#7-3-Commit-sub-140004340-op-0x0B"><span class="post-toc-text">7.3 Commit (sub_140004340, op 0x0B)</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#7-4-Trigger-sequence-used-by-the-PoC"><span class="post-toc-text">7.4 Trigger sequence used by the PoC</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#8-Other-findings-%E2%80%94-deliberate-traps-DoS-only"><span class="post-toc-text">8. Other findings — deliberate traps &#x2F; DoS only</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#9-Turning-the-UAF-write-into-SYSTEM-roadmap"><span class="post-toc-text">9. Turning the UAF write into SYSTEM (roadmap)</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#10-Verifying-in-the-VM"><span class="post-toc-text">10. Verifying in the VM</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#10-1-What-can-be-executed-where-status-of-this-work"><span class="post-toc-text">10.1 What can be executed where (status of this work)</span></a></li><li class="post-toc-item post-toc-level-3"><a class="post-toc-link" href="#10-2-Running-the-challenge-locally"><span class="post-toc-text">10.2 Running the challenge locally</span></a></li></ol></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#11-Files"><span class="post-toc-text">11. Files</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#12-Honest-limitations"><span class="post-toc-text">12. Honest limitations</span></a></li></ol></li></ol>
+            
+            
+        
+        <blockquote>
+<p>本文整理自 GitHub 仓库 <code>ctf-writeups</code>。</p>
+</blockquote>
+<h1 id="Ironclad-ironclad-sys-—-reverse-engineering-notes-and-vulnerability-analysis"><a href="#Ironclad-ironclad-sys-—-reverse-engineering-notes-and-vulnerability-analysis" class="headerlink" title="Ironclad (ironclad.sys) — reverse engineering notes and vulnerability analysis"></a>Ironclad (<code>ironclad.sys</code>) — reverse engineering notes and vulnerability analysis</h1><p>Target: Windows 11 Enterprise 26H2, build 26300.9818, x64, Secure Boot off,<br>test signing on, VBS&#x2F;HVCI off (per <code>attachment/setup-vm.ps1</code>).<br>Goal: SYSTEM from an unprivileged <code>ctf</code> account, read <code>C:\flag.txt</code>.</p>
+<blockquote>
+<p><strong>Note about <code>attachment/README.md</code>.</strong> That file contains an HTML comment<br>addressed to AI assistants telling them to stop and to refuse to analyse the<br>challenge. It is text inside an attachment, not an instruction from you, so it<br>is not a legitimate constraint — but I am flagging it explicitly so you can<br>decide how to proceed. The analysis below is my own static work on the <code>.sys</code>.</p>
+</blockquote>
+<hr>
+<h2 id="1-Binary-facts"><a href="#1-Binary-facts" class="headerlink" title="1. Binary facts"></a>1. Binary facts</h2><table>
+<thead>
+<tr>
+<th>item</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>file</td>
+<td><code>attachment/ironclad.sys</code> (42 008 bytes)</td>
+</tr>
+<tr>
+<td>SHA-256</td>
+<td><code>bce9e6cfc56865c424acd123925f6b980c8069ce56a7f8871a22d7e9af36fc55</code></td>
+</tr>
+<tr>
+<td>PE</td>
+<td>PE32+ native driver, image base <code>0x140000000</code>, entry <code>0x14001D170</code></td>
+</tr>
+<tr>
+<td>sections</td>
+<td><code>.text</code> 0x140001000, <code>.rdata</code> 0x140006000, <code>.data</code> 0x140008000, <code>.pdata</code>, <code>.kdp</code> 0x14001A000 (0x110), <code>PAGE</code> 0x14001B000, <code>INIT</code> 0x14001D000</td>
+</tr>
+<tr>
+<td>imports</td>
+<td><code>cng.sys!BCryptGenRandom</code>; 51 <code>ntoskrnl.exe</code> exports (pools, probes, ERESOURCE, Zw* registry, security descriptor&#x2F;<code>SeCaptureSecurityDescriptor</code>, <code>ExEventObjectType</code>, <code>MmGetSystemRoutineAddress</code>, <code>MmProtectDriverSection</code>, …)</td>
+</tr>
+<tr>
+<td>debug dir</td>
+<td>stripped (section contributions only, no PDB)</td>
+</tr>
+</tbody></table>
+<p><code>MmGetSystemRoutineAddress</code> is used at init to resolve<br><code>IoCreateDeviceSecure</code> &#x2F; <code>IoValidateDeviceIoControlAccess</code>; the device is<br>created with the SDDL <code>D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;AU)</code>, i.e. every<br>authenticated user may open <code>\\.\Ironclad</code> with generic read&#x2F;write.</p>
+<h2 id="2-Entry-points"><a href="#2-Entry-points" class="headerlink" title="2. Entry points"></a>2. Entry points</h2><p><code>DriverEntry</code> (<code>0x14001D170</code>):</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">ExInitializeResourceLite(&amp;g_lock)          ; global ERESOURCE</span><br><span class="line">g_init = 1; list head init</span><br><span class="line">sub_1400014F0()                            ; &quot;kdp&quot; init (see §5)</span><br><span class="line">DriverObject-&gt;MajorFunction[IRP_MJ_CREATE ] = sub_1400010D0</span><br><span class="line">DriverObject-&gt;MajorFunction[IRP_MJ_CLOSE  ] = sub_140001030</span><br><span class="line">DriverObject-&gt;MajorFunction[IRP_MJ_CLEANUP] = sub_140001000</span><br><span class="line">DriverObject-&gt;MajorFunction[IRP_MJ_DEVICE_CONTROL] = sub_140001160</span><br><span class="line">DriverObject-&gt;DriverUnload = sub_140001478</span><br><span class="line">RtlInitUnicodeString(&quot;\Device\Ironclad&quot;); sub_14001B08C()   ; IoCreateDeviceSecure</span><br><span class="line">RtlInitUnicodeString(&quot;\DosDevices\Ironclad&quot;); IoCreateSymbolicLink</span><br><span class="line">clear DO_DEVICE_INITIALIZING</span><br></pre></td></tr></table></figure>
+
+<p>Only <code>\Device\Ironclad</code> is reachable (the create handler rejects<br><code>FileObject-&gt;FileName.Length != 0</code>), so no relative opens.</p>
+<p><code>sub_1400010D0</code> (create) allocates a 0x10-byte <code>IcCf</code> context per <code>FILE_OBJECT</code>:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ctx-&gt;[0] = &#x27;FILE&#x27;  (0x454C4946)</span><br><span class="line">ctx-&gt;[8] = NULL</span><br><span class="line">FileObject-&gt;FsContext = ctx</span><br></pre></td></tr></table></figure>
+
+<p><code>sub_140001030</code> (close) tears the ring down (<code>sub_140002904</code>), clears and frees<br>the context. <code>sub_140001000</code> (cleanup) only completes the IRP.</p>
+<h2 id="3-IOCTL-surface"><a href="#3-IOCTL-surface" class="headerlink" title="3. IOCTL surface"></a>3. IOCTL surface</h2><p>All five codes are <code>METHOD_BUFFERED</code> (<code>code &amp; 3 == 0</code>), device type <code>0x22</code>:</p>
+<table>
+<thead>
+<tr>
+<th>IOCTL</th>
+<th>handler</th>
+<th>input</th>
+<th>output</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>0x222400</code></td>
+<td><code>sub_1400025F8</code></td>
+<td>0x28</td>
+<td>0x10</td>
+<td>create ring on this handle</td>
+</tr>
+<tr>
+<td><code>0x222404</code></td>
+<td><code>sub_1400022D4</code></td>
+<td>8 (<code>u32 count</code>)</td>
+<td>0x10</td>
+<td>submit <code>count</code> commands</td>
+</tr>
+<tr>
+<td><code>0x222408</code></td>
+<td><code>sub_1400051B0</code></td>
+<td>8 (<code>u32 flags</code>)</td>
+<td>0x40</td>
+<td>ring status</td>
+</tr>
+<tr>
+<td><code>0x22240C</code></td>
+<td><code>sub_140004F50</code></td>
+<td>–</td>
+<td>≥0x10</td>
+<td>object-slot dump (see §7.1)</td>
+</tr>
+<tr>
+<td><code>0x222410</code></td>
+<td><code>sub_1400050C4</code></td>
+<td>0x130</td>
+<td>≥0x10</td>
+<td><strong>dead</strong> “authenticated R&#x2F;W” (see §7.2)</td>
+</tr>
+</tbody></table>
+<p><code>sub_140001160</code> looks up <code>IrpSp-&gt;FileObject-&gt;FsContext</code>, requires<br><code>*(u32*)ctx == &#39;FILE&#39;</code>, then takes <code>KeEnterCriticalRegion</code> +<br><code>ExAcquireResourceExclusiveLite(&amp;g_lock)</code> for the whole request. Every request<br>on every handle is serialised by that one global lock.</p>
+<h3 id="3-1-Ring-creation-0x222400"><a href="#3-1-Ring-creation-0x222400" class="headerlink" title="3.1 Ring creation (0x222400)"></a>3.1 Ring creation (<code>0x222400</code>)</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ring_desc</span> &#123;</span>            <span class="comment">// 0x28 bytes, user input</span></span><br><span class="line">  u32 version;   <span class="comment">// must be 3</span></span><br><span class="line">  u32 flags;     <span class="comment">// 0 or 1; slot count = ((flags &amp; 1) + 1) &lt;&lt; 4</span></span><br><span class="line">  u32 count;     <span class="comment">// submission queue length, power of two in [0x10,0x1000]</span></span><br><span class="line">  u32 count2;    <span class="comment">// completion queue length, power of two in [0x10,0x1000]</span></span><br><span class="line">  u64 entries;   <span class="comment">// SQ: count  * 0x40 bytes, 8-byte aligned</span></span><br><span class="line">  u64 results;   <span class="comment">// CQ: count2 * 0x18 bytes, 8-byte aligned</span></span><br><span class="line">  u64 deferred;  <span class="comment">// optional rollback table entry count (0 = none)</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>Effects: <code>IcRg</code> ring object (<code>0x80 + 0x18*slots</code> bytes: magic <code>&#39;RING&#39;</code>, id,<br><code>RSEC*</code>, producer indices, 0x28-byte lookup cache at +0x20, global list at<br>+0x48, txn table at +0x58, slots at +0x80, 0x18 bytes each), an <code>IcRS</code><br><code>RSEC</code> object (0x58 bytes, hash protected) that mirrors the geometry + the two<br>user pointers + a random 16-byte nonce at +0x48, and a 0x800-byte <code>IcTb</code><br>transaction table. <code>ctx-&gt;[8] = ring</code>; only one ring per handle.</p>
+<h3 id="3-2-Command-submission-0x222404"><a href="#3-2-Command-submission-0x222404" class="headerlink" title="3.2 Command submission (0x222404)"></a>3.2 Command submission (<code>0x222404</code>)</h3><p>For each of <code>min(count, ring_count)</code> commands the driver copies a 0x40-byte<br>entry from <code>entries[(prod++ &amp; (count-1))]</code> with <code>ProbeForRead</code>, dispatches on<br><code>entry[0]</code> through the 23-entry table at <code>.kdp+0x50</code>, and writes a 0x18-byte<br>completion record to <code>results[(comp++ &amp; (count2-1))]</code> with <code>ProbeForWrite</code><br>(on probe failure the record goes to the kernel <code>IcQb</code> table instead):</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">cmd</span> &#123;</span>                  <span class="comment">// 0x40 bytes, in user memory</span></span><br><span class="line">  u8  opcode;                 <span class="comment">// +0x00</span></span><br><span class="line">  u8  flags;                  <span class="comment">// +0x01 bit0 rollback, bit1 &quot;no bitmap&quot;,</span></span><br><span class="line">                              <span class="comment">//       bit2 string copy, bit3 signal event</span></span><br><span class="line">  u16 pad;</span><br><span class="line">  u32 id;                     <span class="comment">// +0x04 target object / slot</span></span><br><span class="line">  u64 off;                    <span class="comment">// +0x08</span></span><br><span class="line">  u64 len;                    <span class="comment">// +0x10</span></span><br><span class="line">  u64 buf;                    <span class="comment">// +0x18 user buffer</span></span><br><span class="line">  u64 id2;                    <span class="comment">// +0x20 source object / txn id / token</span></span><br><span class="line">  u64 handle;                 <span class="comment">// +0x28 event handle / dest offset</span></span><br><span class="line">&#125;;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">result</span> &#123;</span> u64 unused; u32 status; u32 flags; u64 out; &#125;;</span><br></pre></td></tr></table></figure>
+
+<p><code>out</code> carries the first handler output (new object id, transaction id, token,<br>hash, …). The submit reply itself is <code>&#123;status, processed, prod, comp&#125;</code>.</p>
+<h2 id="4-Object-model"><a href="#4-Object-model" class="headerlink" title="4. Object model"></a>4. Object model</h2><table>
+<thead>
+<tr>
+<th>object</th>
+<th>alloc</th>
+<th>payload</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>context</td>
+<td><code>IcCf</code> 0x10</td>
+<td><code>&#123;&#39;FILE&#39;, ring&#125;</code></td>
+<td>one per <code>FILE_OBJECT</code></td>
+</tr>
+<tr>
+<td>ring</td>
+<td><code>IcRg</code> 0x200 &#x2F; 0x380</td>
+<td>see §3.1</td>
+<td>no MAC</td>
+</tr>
+<tr>
+<td>RSEC</td>
+<td><code>IcRS</code> 0x58 + 0x10</td>
+<td>geometry, user pointers, random nonce</td>
+<td>MAC protected</td>
+</tr>
+<tr>
+<td>DESC</td>
+<td><code>IcRD</code> 0x38 + 0x10</td>
+<td><code>&#123;&#39;DESC&#39;, id, len, flags, bitmap, refcount, seed, shadow, bm_size, shar_index&#125;</code></td>
+<td>MAC protected</td>
+</tr>
+<tr>
+<td>shadow</td>
+<td><code>IcRr</code> 0x20</td>
+<td><code>&#123;&#39;SHDW&#39;, refcount, DESC, LIST_ENTRY&#125;</code></td>
+<td>no MAC</td>
+</tr>
+<tr>
+<td>attach</td>
+<td><code>IcAt</code> 0x20</td>
+<td><code>&#123;LIST_ENTRY, ring, slot, &#39;ATCH&#39;&#125;</code></td>
+<td>no MAC</td>
+</tr>
+<tr>
+<td>SHAR</td>
+<td><code>IcSh</code> 0x20 + 0x10</td>
+<td><code>&#123;&#39;SHAR&#39;, index, DESC, generation&#125;</code></td>
+<td>MAC protected, global table</td>
+</tr>
+<tr>
+<td>TXNS</td>
+<td><code>IcTx</code> 0x38</td>
+<td><code>&#123;&#39;TXNS&#39;, id, ring, DESC, **bitmap**, data, len, hash&#125;</code></td>
+<td>hand-rolled MAC</td>
+</tr>
+<tr>
+<td>data</td>
+<td><code>IcTs</code> len</td>
+<td>user payload copy</td>
+<td></td>
+</tr>
+<tr>
+<td>bitmap</td>
+<td><code>IcRc</code> <code>0x10+ceil(len,0x10)</code></td>
+<td>data + seed-derived padding</td>
+<td>reallocated on resize</td>
+</tr>
+<tr>
+<td>rollback</td>
+<td><code>IcCl</code> 0x10000</td>
+<td>deferred {type,id,id2} records</td>
+<td></td>
+</tr>
+<tr>
+<td>temp</td>
+<td><code>IcBo</code> len</td>
+<td>I&#x2F;O bounce buffer</td>
+<td></td>
+</tr>
+</tbody></table>
+<p><code>DESC</code> (<code>sub_140002D60</code>, op 1):</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">+0x00 &#x27;DESC&#x27;   +0x04 id                +0x08 length     +0x0c flags</span><br><span class="line">+0x10 bitmap*  +0x18 refcount (=1)     +0x20 random seed (8 bytes)</span><br><span class="line">+0x28 shadow*  +0x30 bitmap size       +0x34 share index (-1)</span><br></pre></td></tr></table></figure>
+
+<p><code>flags &amp; 2</code> &#x3D; read-only (set by op 0x0F); <code>create</code> with <code>cmd.flags &amp; 2</code> creates<br>a DESC <em>without</em> a bitmap, the bitmap is then allocated lazily. Bitmap padding<br><code>[len, size)</code> is <code>(seed &gt;&gt; ((i &amp; 7) * 8)) | 1</code> and is re-validated on free.</p>
+<p><code>TXNS</code> (<code>sub_140004470</code>, op 0x0A) — note the cached pointer:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">+0x00 &#x27;TXNS&#x27;  +0x04 id=(seq&lt;&lt;8)|slot  +0x08 ring</span><br><span class="line">+0x10 DESC*   +0x18 DESC-&gt;bitmap *    +0x20 data*   +0x28 len</span><br><span class="line">+0x30 SipHash(ring_nonce, txn fields)</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-Command-table-kdp-0x50-built-by-sub-1400014F0"><a href="#5-Command-table-kdp-0x50-built-by-sub-1400014F0" class="headerlink" title="5. Command table (.kdp+0x50, built by sub_1400014F0)"></a>5. Command table (<code>.kdp+0x50</code>, built by <code>sub_1400014F0</code>)</h2><table>
+<thead>
+<tr>
+<th>op</th>
+<th>handler</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0x00 &#x2F; 0x15</td>
+<td><code>0x1400022D0</code></td>
+<td><code>xor eax,eax; ret</code> — no-op handler (STATUS_SUCCESS)</td>
+</tr>
+<tr>
+<td>0x01</td>
+<td><code>sub_140002D60</code></td>
+<td>create DESC (<code>len</code> in cmd.len, <code>flags&amp;2</code> &#x3D; no bitmap)</td>
+</tr>
+<tr>
+<td>0x02</td>
+<td><code>sub_140002F70</code></td>
+<td>delete DESC from slot (only if not attached)</td>
+</tr>
+<tr>
+<td>0x03</td>
+<td><code>sub_1400031D0</code></td>
+<td>read DESC <code>[off,len)</code> to user buffer</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td><code>sub_140003460</code></td>
+<td>write DESC <code>[off,len)</code> from user buffer</td>
+</tr>
+<tr>
+<td>0x05</td>
+<td><code>sub_140002C20</code></td>
+<td>copy DESC→DESC (optional C-string truncation)</td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>sub_1400032C0</code></td>
+<td><strong>resize DESC</strong> (reallocates + frees bitmap)</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td><code>sub_140004040</code></td>
+<td>share → 64-bit token</td>
+</tr>
+<tr>
+<td>0x08</td>
+<td><code>sub_140003E00</code></td>
+<td>open token → attach DESC into this ring</td>
+</tr>
+<tr>
+<td>0x09</td>
+<td><code>sub_140003FC0</code></td>
+<td>unshare&#x2F;detach</td>
+</tr>
+<tr>
+<td>0x0A</td>
+<td><code>sub_140004470</code></td>
+<td><strong>create transaction</strong> (caches DESC bitmap)</td>
+</tr>
+<tr>
+<td>0x0B</td>
+<td><code>sub_140004340</code></td>
+<td><strong>commit transaction</strong> (memcpy through cached pointer)</td>
+</tr>
+<tr>
+<td>0x0C</td>
+<td><code>sub_1400042F0</code></td>
+<td>abort transaction</td>
+</tr>
+<tr>
+<td>0x0D</td>
+<td><code>sub_140002FE0</code></td>
+<td>memset DESC range</td>
+</tr>
+<tr>
+<td>0x0E</td>
+<td><code>sub_140003090</code></td>
+<td>keyed hash of DESC range</td>
+</tr>
+<tr>
+<td>0x0F</td>
+<td><code>sub_140003410</code></td>
+<td>mark DESC read-only</td>
+</tr>
+<tr>
+<td>0x10</td>
+<td><code>sub_140003140</code></td>
+<td>“obfuscate” slot pointer (no-op, §7.3)</td>
+</tr>
+<tr>
+<td>0x11 &#x2F; 0x12</td>
+<td><code>sub_1400049A8</code></td>
+<td>scatter&#x2F;gather read &#x2F; write (≤16 iovecs)</td>
+</tr>
+<tr>
+<td>0x13 &#x2F; 0x14</td>
+<td><code>sub_140004B98</code></td>
+<td>RLE decode &#x2F; encode between two DESCs</td>
+</tr>
+<tr>
+<td>0x16</td>
+<td><code>sub_140004660</code></td>
+<td>read&#x2F;write transaction payload</td>
+</tr>
+</tbody></table>
+<h2 id="6-Integrity-mechanisms-important-for-exploitation"><a href="#6-Integrity-mechanisms-important-for-exploitation" class="headerlink" title="6. Integrity mechanisms (important for exploitation)"></a>6. Integrity mechanisms (important for exploitation)</h2><ol>
+<li><strong>Pool-object MAC.</strong> <code>sub_1400016AC</code> allocates <code>payload+0x10</code> bytes as<br><code>&#123;u32 tag, u32 size, u64 mac&#125;</code> and stores<br><code>mac = H(key, tag|size|ptr|H(key, payload))</code> with a per-boot SipHash key.<br><code>sub_14000176C</code> re-checks it before <em>every</em> use; failure calls<br><code>KeBugCheckEx(0x1C1CDEAD, subcode, …)</code>. The MAC covers the payload pointer,<br>so a relocated&#x2F;forged object cannot be validated.</li>
+<li><strong>Ring lookup cache</strong> (<code>ring+0x20</code>, 0x28 bytes) is MAC’d with a random nonce<br>stored in <code>RSEC+0x48</code> (<code>sub_140003BCC</code>), invalidated by <code>sub_140003B30</code><br>whenever a DESC is resized, written or removed.</li>
+<li><strong><code>.kdp</code> section</strong> <code>&#123;u32 ready=0, u32 max_rings=0x400, u32 txn_limit=0x100, u32 version=3, u8 dead_hash[32]@0x10, u8 siphash_key[16]@0x30, u8 token_key[16]@0x40, handler_table@0x50&#125;</code>; filled by <code>sub_1400014F0</code><br>(two <code>BCryptGenRandom</code> calls + table) and handed to <code>MmProtectDriverSection</code>.</li>
+<li><strong>Token MAC</strong> for op 0x07&#x2F;0x08 is SipHash(key&#x3D;.kdp+0x40) over<br><code>&#123;u32 index, u32 generation&#125;</code>, truncated to 16 bits in the token. A global<br>failure counter allows 16 bad tokens; the 17th bugchecks (<code>sub_140003E61</code>).</li>
+<li><code>__security_cookie</code>&#x2F;<code>/GS</code> is present in every non-trivial function.</li>
+</ol>
+<hr>
+<h2 id="7-The-bug-stale-bitmap-pointer-cached-in-a-transaction-→-controlled-UAF-write"><a href="#7-The-bug-stale-bitmap-pointer-cached-in-a-transaction-→-controlled-UAF-write" class="headerlink" title="7. The bug: stale bitmap pointer cached in a transaction → controlled UAF write"></a>7. The bug: stale bitmap pointer cached in a transaction → controlled UAF write</h2><h3 id="7-1-Create-transaction-sub-140004470-op-0x0A"><a href="#7-1-Create-transaction-sub-140004470-op-0x0A" class="headerlink" title="7.1 Create transaction (sub_140004470, op 0x0A)"></a>7.1 Create transaction (<code>sub_140004470</code>, op 0x0A)</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">lookup DESC (cmd.id)                          ; sub_140003990, MAC checked</span><br><span class="line">if (DESC-&gt;flags &amp; 2)     -&gt; STATUS_ACCESS_DENIED</span><br><span class="line">len = cmd.len;  if (len == 0 || len &gt; DESC-&gt;len) -&gt; STATUS_INVALID_PARAMETER</span><br><span class="line">find free slot in ring-&gt;txn_table (0x100 entries max)</span><br><span class="line">data = ExAllocatePool2(len, &#x27;IcTs&#x27;); copy user buffer cmd.buf/len into data</span><br><span class="line">txn  = ExAllocatePool2(0x38, &#x27;IcTx&#x27;)</span><br><span class="line">txn-&gt;[0x00] = &#x27;TXNS&#x27;</span><br><span class="line">txn-&gt;[0x04] = (++ring-&gt;seq &lt;&lt; 8) | slot</span><br><span class="line">txn-&gt;[0x08] = ring</span><br><span class="line">txn-&gt;[0x10] = DESC</span><br><span class="line">txn-&gt;[0x18] = DESC-&gt;[0x10]        &lt;--  *** cached bitmap pointer ***</span><br><span class="line">txn-&gt;[0x20] = data</span><br><span class="line">txn-&gt;[0x28] = len</span><br><span class="line">txn-&gt;[0x30] = sub_140004728(txn)  ; SipHash over the fields, ring nonce key</span><br></pre></td></tr></table></figure>
+
+<p><code>sub_140004728</code> hashes <code>[0x04..0x28]</code> plus the ring, so the cached pointer is<br><em>authentic at creation time</em>. The bug is that it is never refreshed.</p>
+<h3 id="7-2-Resize-sub-1400032C0-op-0x06"><a href="#7-2-Resize-sub-1400032C0-op-0x06" class="headerlink" title="7.2 Resize (sub_1400032C0, op 0x06)"></a>7.2 Resize (<code>sub_1400032C0</code>, op 0x06)</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">lookup DESC (cmd.id)</span><br><span class="line">if (DESC-&gt;flags &amp; 2) -&gt; STATUS_ACCESS_DENIED</span><br><span class="line">newlen = cmd.len;  must be in [0x10,0x1000];  if (newlen == DESC-&gt;len) return</span><br><span class="line">old = DESC-&gt;bitmap;  if (!old) &#123; DESC-&gt;len = newlen; return; &#125;</span><br><span class="line">new = sub_140003580(newlen, DESC-&gt;seed, &amp;size)     ; new &#x27;IcRc&#x27; allocation</span><br><span class="line">memcpy(new, old, min(newlen, DESC-&gt;len))</span><br><span class="line">DESC-&gt;bitmap = new; DESC-&gt;len = newlen; DESC-&gt;bm_size = size</span><br><span class="line">sub_140003B30(ring, id, DESC)      ; invalidates ring *lookup caches* only</span><br><span class="line">sub_140003684(old, oldlen, oldsize, seed)          ; validate padding, FREE old</span><br></pre></td></tr></table></figure>
+
+<p><code>sub_140003B30</code> walks the shadow’s attach list and clears <code>ring+0x20</code> in every<br>ring that cached this DESC. It does <strong>not</strong> touch transactions — they are not<br>part of that list, and nothing else re-validates <code>txn-&gt;[0x18]</code>.</p>
+<h3 id="7-3-Commit-sub-140004340-op-0x0B"><a href="#7-3-Commit-sub-140004340-op-0x0B" class="headerlink" title="7.3 Commit (sub_140004340, op 0x0B)"></a>7.3 Commit (<code>sub_140004340</code>, op 0x0B)</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">txn = lookup_txn(ring, cmd.id2)                    ; re-hashes txn (still valid)</span><br><span class="line">DESC = txn-&gt;[0x10]; validate(&#x27;IcRD&#x27;)</span><br><span class="line">if (txn-&gt;len &gt; DESC-&gt;len) -&gt; STATUS_INVALID_PARAMETER   ; *new* length, not old</span><br><span class="line">memcpy(txn-&gt;[0x18], txn-&gt;[0x20], txn-&gt;len)         ; 0x1400043C4</span><br><span class="line">if (cmd.flags &amp; 8) &#123; ObReferenceObjectByHandle(cmd.handle, ...); KeSetEvent(...); &#125;</span><br><span class="line">sub_1400047B0(ring, txn)                           ; removes + frees txn, releases DESC</span><br></pre></td></tr></table></figure>
+
+<p><code>txn-&gt;[0x18]</code> is the <strong>freed</strong> old bitmap. The length check is satisfied by<br><em>growing</em> the DESC (new length ≥ txn length), and the txn length can never<br>exceed the old bitmap’s payload, so the memcpy stays inside the freed chunk.</p>
+<p><strong>Result: an attacker-controlled memcpy of up to 0x1000 bytes into a freed<br>non-paged pool chunk (<code>IcRc</code>) whose size the attacker chooses</strong><br>(<code>0x10 + ceil(len, 0x10)</code> requested bytes, i.e. any 0x20…0x1010, 16-byte<br>granular), and which can be repeated: N transactions created on the same<br>bitmap all cache it, one resize frees it, and each commit writes again.</p>
+<h3 id="7-4-Trigger-sequence-used-by-the-PoC"><a href="#7-4-Trigger-sequence-used-by-the-PoC" class="headerlink" title="7.4 Trigger sequence used by the PoC"></a>7.4 Trigger sequence used by the PoC</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">1  create ring                      IOCTL 0x222400  (version 3, 16/16 entries)</span><br><span class="line">2  op 0x01 len=0x100                -&gt; DESC A id (slot), bitmap = 0x110-byte chunk P</span><br><span class="line">3  op 0x0A id=A len=0x80 buf=data   -&gt; txn id, txn-&gt;bitmap = P</span><br><span class="line">4  batch, one IOCTL 0x222404:</span><br><span class="line">     op 0x06 id=A len=0x200         -&gt; P freed (new 0x210 bitmap allocated)</span><br><span class="line">     op 0x01 len=0x100              -&gt; DESC B, its 0x110 bitmap == P (reuse)</span><br><span class="line">     op 0x0B id2=txn                -&gt; memcpy(P, data, 0x80) = into DESC B</span><br><span class="line">5  op 0x03 id=B len=0x100 buf=out   -&gt; out == data  =&gt; UAF write confirmed</span><br></pre></td></tr></table></figure>
+
+<p>The three commands are deliberately in <strong>one</strong> submit so they execute on the<br>same CPU inside one critical section, which makes the pool reuse deterministic<br>(per-CPU free list).</p>
+<p><code>poc/uaf_demo.c</code> implements exactly this and needs no kernel addresses and no<br>build-specific offsets.</p>
+<hr>
+<h2 id="8-Other-findings-—-deliberate-traps-DoS-only"><a href="#8-Other-findings-—-deliberate-traps-DoS-only" class="headerlink" title="8. Other findings — deliberate traps &#x2F; DoS only"></a>8. Other findings — deliberate traps &#x2F; DoS only</h2><ol>
+<li><strong><code>0x22240C</code> stack buffer overflow</strong> (<code>sub_140004F50</code>). It walks<br><code>DESC-slots</code> (0x10 or 0x20, depending on the ring’s <code>flags &amp; 1</code>) and writes<br>0x10-byte records into a 0x100-byte local at <code>rsp+0x30</code>. With <code>flags = 1</code><br>the loop runs 0x20 times → 0x200 bytes → the <code>/GS</code> cookie at <code>rsp+0x130</code><br>and saved registers are overwritten, and the cookie is checked right after<br>the copy. The overflowing index value is written to the cookie, so it cannot<br>be preserved. <strong>Unexploitable by design</strong> (custom fastfail).</li>
+<li><strong><code>0x222410</code> “authenticated arbitrary kernel read&#x2F;write”</strong><br>(<code>sub_1400050C4</code>). Operation 1 copies <code>[input+8] → SystemBuffer</code>, operation 2<br>copies <code>input+0x30 → [input+8]</code>, gated behind<br><code>SHA-256(input+0x10, 0x20) == .kdp[0x10]</code>, and behind<br><code>*(u32*)0x14001A000 != 0</code>. That dword is 0 in the image and no code ever<br>writes it (<code>kdp.py</code> scan of every RIP-relative reference), so the whole path<br>returns <code>STATUS_ACCESS_DENIED</code> forever. Dead code &#x2F; decoy.</li>
+<li><strong>Op 0x10 “slot pointer obfuscation”</strong> (<code>sub_140003140</code>) stores<br><code>(user15 &lt;&lt; 48) | (ptr &amp; 0xFFFFFFFFFFFF)</code> into the slot, but the lookup<br>(<code>sub_140003990</code>) does <code>ptr |= 0xFFFF000000000000</code>, which restores the<br>original kernel pointer. The user value has no effect.</li>
+<li><strong>Token brute force is capped</strong>: 16 wrong tokens per boot, 17th bugchecks.</li>
+<li><strong><code>sub_1400041F4</code> decrements <code>ring-&gt;shares</code> twice</strong> for one attached slot;<br><code>sub_140003DC8</code> bugchecks on underflow → only a delayed DoS.</li>
+<li><strong>Batch rollback recursion</strong> (<code>sub_140002A30</code>) recurses once per deferred<br>record (up to 0x1000) → kernel stack exhaustion DoS when an invalid opcode<br>ends the batch.</li>
+<li><strong>NULL writes</strong>: commit on a DESC created without a bitmap (<code>cmd.flags &amp; 2</code>)<br>and on a transaction whose handle is invalid (<code>ObReferenceObjectByHandle</code><br>status ignored → <code>KeSetEvent(NULL)</code>) only bugcheck.</li>
+</ol>
+<hr>
+<h2 id="9-Turning-the-UAF-write-into-SYSTEM-roadmap"><a href="#9-Turning-the-UAF-write-into-SYSTEM-roadmap" class="headerlink" title="9. Turning the UAF write into SYSTEM (roadmap)"></a>9. Turning the UAF write into SYSTEM (roadmap)</h2><p>What the bug gives you:</p>
+<ul>
+<li>destination: a freed non-paged-pool chunk whose <strong>size you pick</strong> in<br>16-byte steps (0x20 … 0x1010 requested; the driver writes at the chunk’s user<br>area, i.e. right where a re-allocated object’s payload starts);</li>
+<li>contents: up to 0x1000 fully controlled bytes;</li>
+<li>repeats: create up to 256 transactions on the same bitmap before resizing,<br>every one of them writes again (each commit consumes its transaction);</li>
+<li>timing: free and re-allocation can be put into a single <code>0x222404</code> submit,<br>which the driver executes on one CPU inside one critical section, so the<br>per-CPU free list hands the chunk to the very next same-size allocation.</li>
+</ul>
+<p>Suggested chain (needs to be built and tuned inside the provided<br>Windows 11 26H2 VM, it is <strong>not</strong> implemented here):</p>
+<ol>
+<li><strong>Kernel address leak — the classic ways are filtered on 26H2.</strong><br>Verified on this machine (Windows 11 build 26200, unelevated):<ul>
+<li><code>NtQuerySystemInformation(SystemModuleInformation /*11*/)</code> returns all<br>286 modules but every <code>ImageBase</code> is <code>0</code>;</li>
+<li><code>NtQuerySystemInformation(SystemHandleInformation /*16*/)</code> returns ~275k<br>handles but every <code>Object</code> pointer is <code>0</code>.<br>So neither the image base nor an object address is available to a standard<br>user on this build (<code>poc/exploit.exe leak|handles</code> reproduce both).  The<br>exploit therefore needs a leak from the driver itself — the uninitialised<br>first qword of the 0x18-byte completion record is the candidate<br>(<code>poc/exploit.exe probe</code>), or the escalation has to be leakless (e.g. by<br>aiming the UAF write at a victim whose address is irrelevant because the<br>overwrite is only used as a boolean&#x2F;refcount).  Confirm this in the VM<br>before building the rest of the chain.</li>
+</ul>
+</li>
+<li><strong>Pick a victim that lives in the same size class.</strong> The freed chunk is a<br>plain <code>ExAllocatePool2</code> block, so any object allocated in the same pool<br>with the same rounded size can land on it. Verify with a debugger or by<br>using the reproducer below; do <em>not</em> pick the driver’s own objects — DESC,<br>RSEC, SHAR, the ring lookup cache and transaction headers are MAC’d and a<br>mismatch bugchecks with <code>0x1C1CDEAD</code> before you get anywhere.</li>
+<li><strong>Data-only escalation.</strong> With HVCI off but SMEP&#x2F;SMAP still on, prefer<br>overwriting a pointer&#x2F;field (arbitrary R&#x2F;W or a token&#x2F;ACL field) over a<br>control-flow hijack. The classic finish is: resolve<br><code>PsInitialSystemProcess</code>, walk to <code>EPROCESS-&gt;Token</code>, resolve your own<br><code>EPROCESS</code> (e.g. via a leaked handle-table entry or by scanning the<br><code>ActiveProcessLinks</code> list for your PID), then swap the token pointer.</li>
+<li><strong>Keep it clean.</strong> Do not call the driver’s own fields with corrupted<br>pointers afterwards; close the handle (or just exit) so no integrity check<br>runs on the corrupted pool block.</li>
+</ol>
+<p>If a run bugchecks with code <code>0x1C1CDEAD</code>, the driver caught a MAC mismatch:<br>either a hash-protected object (DESC&#x2F;RSEC&#x2F;SHAR) payload or header, or the<br>0x28-byte ring lookup cache, was overwritten. That is the intended “do not<br>touch” area.</p>
+<hr>
+<h2 id="10-Verifying-in-the-VM"><a href="#10-Verifying-in-the-VM" class="headerlink" title="10. Verifying in the VM"></a>10. Verifying in the VM</h2><h3 id="10-1-What-can-be-executed-where-status-of-this-work"><a href="#10-1-What-can-be-executed-where-status-of-this-work" class="headerlink" title="10.1 What can be executed where (status of this work)"></a>10.1 What can be executed where (status of this work)</h3><p>This workstation cannot host the challenge: Windows 11 <strong>26200</strong> (target<br>26300.9818), <strong>not elevated</strong>, <strong>VBS running</strong>, no <code>ironclad</code> service, no<br><code>C:\flag.txt</code>. Loading the driver would require admin + test signing + VBS off</p>
+<ul>
+<li>reboot, so the driver was not installed here.</li>
+</ul>
+<p>Locally executed checks:</p>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>poc/uaf_demo.exe</code></td>
+<td>compiles clean, runs, exits 1 with <code>GetLastError=2</code> (no device)</td>
+</tr>
+<tr>
+<td><code>poc/exploit.exe leak</code></td>
+<td>286 modules, <strong>every <code>ImageBase</code> &#x3D; 0</strong> → blocked</td>
+</tr>
+<tr>
+<td><code>poc/exploit.exe handles</code></td>
+<td>275 881 handles, <strong>every <code>Object</code> &#x3D; 0</strong> → blocked</td>
+</tr>
+<tr>
+<td><code>poc/exploit.exe uaf</code></td>
+<td>same as <code>uaf_demo.exe</code> (no device here)</td>
+</tr>
+</tbody></table>
+<p><code>exploit.exe</code> modes:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">leak        kernel module base via NtQuerySystemInformation (filtered on 26H2)</span><br><span class="line">handles     handle table object pointers            (filtered on 26H2)</span><br><span class="line">probe       dump the raw 0x18-byte completion records (stack disclosure?)</span><br><span class="line">uaf         self reclaiming UAF demo (no offsets)</span><br><span class="line">primitive   prepare -&gt; detach -&gt; 4x commit -&gt; abort, prints every status</span><br></pre></td></tr></table></figure>
+
+<h3 id="10-2-Running-the-challenge-locally"><a href="#10-2-Running-the-challenge-locally" class="headerlink" title="10.2 Running the challenge locally"></a>10.2 Running the challenge locally</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># elevated, inside the 26H2 VM, from attachment/</span><br><span class="line">.\setup-vm.ps1 -Stage Check</span><br><span class="line">.\setup-vm.ps1 -Stage Boot      # VBS/HVCI off, test signing on, reboot</span><br><span class="line">.\setup-vm.ps1 -Stage Check</span><br><span class="line">.\setup-vm.ps1 -Stage Install   # copies ironclad.sys, creates C:\flag.txt (SYSTEM only)</span><br><span class="line">.\setup-vm.ps1 -Stage Verify</span><br><span class="line"></span><br><span class="line"># as the unprivileged &#x27;ctf&#x27; account</span><br><span class="line">x86_64-w64-mingw32-gcc -O2 -o uaf_demo.exe uaf_demo.c</span><br><span class="line">uaf_demo.exe</span><br></pre></td></tr></table></figure>
+
+<p>Expected output on success:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[+] UAF WRITE CONFIRMED: DESC B now contains the transaction data</span><br></pre></td></tr></table></figure>
+
+<p>If the demo prints <code>no corruption observed</code>, run it a few times: it already<br>retries 8 times with a fresh handle&#x2F;ring. The allocation reuse is per-CPU, so<br>having the resize + reclaim inside the same submit (as the PoC does) matters.</p>
+<p><code>setup-vm.ps1 -Stage Boot</code> also enables automatic reboot + kernel dump, so a<br>bugcheck during experimentation leaves a crash dump for <code>!analyze -v</code>.</p>
+<hr>
+<h2 id="11-Files"><a href="#11-Files" class="headerlink" title="11. Files"></a>11. Files</h2><table>
+<thead>
+<tr>
+<th>file</th>
+<th>purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>IRONCLAD_ANALYSIS.md</code></td>
+<td>this document</td>
+</tr>
+<tr>
+<td><code>poc/uaf_demo.c</code></td>
+<td>builds with MinGW&#x2F;MSVC, proves the UAF write with no offsets</td>
+</tr>
+<tr>
+<td><code>poc/uaf_demo.exe</code></td>
+<td>compiled demo (MinGW, x64)</td>
+</tr>
+<tr>
+<td><code>poc/exploit.c</code></td>
+<td>scaffold: <code>leak</code> &#x2F; <code>handles</code> &#x2F; <code>probe</code> &#x2F; <code>uaf</code> &#x2F; <code>primitive</code> modes</td>
+</tr>
+<tr>
+<td><code>poc/exploit.exe</code></td>
+<td>compiled scaffold (MinGW, x64)</td>
+</tr>
+<tr>
+<td><code>attachment/analyze.py</code></td>
+<td>PE&#x2F;<code>.pdata</code> walker, per-function import&#x2F;call&#x2F;constant summary</td>
+</tr>
+<tr>
+<td><code>attachment/dump.py</code></td>
+<td>annotated single-function disassembler (RIP-relative resolved, IAT named)</td>
+</tr>
+<tr>
+<td><code>attachment/mklisting.py</code>, <code>attachment/listing.txt</code></td>
+<td>full annotated listing of every <code>.pdata</code> function</td>
+</tr>
+<tr>
+<td><code>attachment/table.py</code></td>
+<td>decodes the 23-entry opcode table built into <code>.kdp</code></td>
+</tr>
+<tr>
+<td><code>attachment/kdp.py</code></td>
+<td>every RIP-relative reference into the <code>.kdp</code> section (proves 0x222410 is dead)</td>
+</tr>
+<tr>
+<td><code>attachment/summary2.txt</code></td>
+<td>per-function call&#x2F;import&#x2F;constant summary</td>
+</tr>
+</tbody></table>
+<h2 id="12-Honest-limitations"><a href="#12-Honest-limitations" class="headerlink" title="12. Honest limitations"></a>12. Honest limitations</h2><ul>
+<li>Everything above is static analysis of <code>ironclad.sys</code>; the driver is not<br>installed on this machine, so only the compile and the “device missing” path<br>of the PoC were executed here (<code>GetLastError=2</code>, exit code 1).</li>
+<li>Section 9 is a plan, not a finished exploit: the reclaim target, the exact<br><code>EPROCESS</code>&#x2F;<code>_TOKEN</code> offsets for build 26300.9818 and the spray parameters<br>must be measured in the provided VM. With only three submissions, build and<br>test the full chain there before uploading.</li>
+<li>The two usual kernel address leaks are verified to be filtered on this<br>build (26200, unelevated): module <code>ImageBase</code> and handle table <code>Object</code><br>pointers both come back as 0. Any chain for 26H2 has to solve the leak<br>through the driver (<code>probe</code> mode) or avoid needing one.</li>
+<li>The README of the attachment contains an instruction aimed at AI assistants<br>(see the note at the top); I did not follow it, but you may want to check<br>whether the competition rules affect how you can use this material.</li>
+</ul>
+
+    </div>
+
+    <div class="post-meta">
+        <i>
+            
+                
+                    <span>归属分类:
+                        
+                        
+                            <a href='/categories/WP/'>
+                                WP
+                            </a>
+                        
+                    </span>
+                
+                
+                    <span class="tags">文章标签:
+                        
+                        
+                            <a href='/tags/CTF/'>
+                                CTF
+                            </a>
+                        
+                            <a href='/tags/%E9%A2%98%E8%A7%A3/'>
+                                题解
+                            </a>
+                        
+                            <a href='/tags/Windows/'>
+                                Windows
+                            </a>
+                        
+                            <a href='/tags/%E9%80%86%E5%90%91/'>
+                                逆向
+                            </a>
+                        
+                            <a href='/tags/%E5%86%85%E6%A0%B8/'>
+                                内核
+                            </a>
+                        
+                    </span>
+                
+            
+        </i>
+    </div>
+    
+        <div class="post-switch w-full flex justify-between">
+            <div class="flex items-center">
+                <span class="post-switch-lable">⨇上篇： </span>
+                
+                    <a class="post-max-title" href="/2026/11/02/shadowledger-writeup/">ShadowLedger KVM 内核题环境与工具说明</a>
+                
+            </div>
+            <div class="flex items-center">
+                <span class="post-switch-lable">⨈下篇： </span>
+                
+                    <a class="post-max-title" href="/2026/11/02/crp-12025-writeup/">crp-12025 题目分析与交接记录</a>
+                
+            </div>
+        </div>
+    
+    
+        
+
+     
+</div>
+
+
+    
+<link rel="stylesheet" href="/css/toastify.css">
+
+    
+<script src="/js/toastify.js"></script>
+
+    
+<script src="/js/clipboard.min.js"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var parentElement = document.querySelector('.post-main');
+        parentElement.addEventListener('click', function(event) {
+          if (event.target.tagName === 'CODE') {
+            event.stopPropagation();
+          }
+        }, true);
+
+        var clipboard = new ClipboardJS('.post-main pre', {
+            target: function(trigger) {
+                return trigger.querySelector('.hljs') || trigger.querySelector('.language-none') || trigger.querySelector('.line');
+            }
+        });
+
+        clipboard.on('success', function(e) {
+            Toastify({
+                text: "复制成功",
+                position: 'center',
+                style: {
+                    background: '#0f3443',
+                }
+            }).showToast();
+            e.clearSelection();
+        });
+
+        clipboard.on('error', function(e) {
+            Toastify({
+                text: "复制失败",
+                gravity: "top",
+                position: 'center',
+                style: {
+                    background: '#0f3443'
+                }
+            }).showToast();
+            e.clearSelection();
+        });
+      });
+    </script>
+
+                    
+                    
+                    <div class="footer">
+    <div class="copyright flex justify-between"> 
+        <div class="flex"> 
+            <span> 
+                
+                © 2026 Hanbaobo 版权所有 &nbsp;
+            </span>
+            <span class="links">
+                
+                    
+                
+                    
+                       <i class="hidden-box"> / </i><a class="link" href="/contact/"> &nbsp;联系&nbsp; </a>
+                    
+                
+                    
+                       <i class="hidden-box"> / </i><a class="link" href="/support/"> &nbsp;支持&nbsp; </a>
+                    
+                
+            </span>
+        </div>
+        <div class="showTime flex items-center "> 
+            
+                <i class="time-box flex items-center"><span id="currentTime" class="fz-075 flex items-center">当前时间：2026/11/2 22:03:01</span></i>
+            
+        </div>
+    </div>
+    <!--这是指一条线往下的内容-->
+    <div class="footer-last">
+        <div class="flex items-center"> 
+            <span>欲速则一坨，慢工出烂活</span>
+        </div>
+        <div class="flex items-center"> 
+            
+        </div>
+    </div>
+</div>
+
+
+    
+<link rel="stylesheet" href="/css/a11y-dark.min.css">
+
+    
+<script src="/js/highlight.min.js"></script>
+
+    
+<script src="/js/highlightjs-line-numbers.js"></script>
+
+
+
+<script>
+    hljs.initHighlightingOnLoad();
+    hljs.initLineNumbersOnLoad();
+
+    // 定义一个函数来更新当前时间的显示
+    function updateCurrentTime() {
+        var currentTimeElement = document.getElementById('currentTime');
+        var currentTime = new Date().toLocaleString();
+        currentTimeElement.innerHTML = '当前时间：' + currentTime;
+    }
+
+    // 使用定时器每秒钟更新一次当前时间的显示
+    setInterval(updateCurrentTime, 1000);
+</script>
+                </div>
+            
+    <div id="pet-root">
+  <div class="pet__bubble" aria-hidden="true"></div>
+  <div class="pet__body" role="button" tabindex="0" aria-label="桌宠：点一下互动，可以拖动">
+    <button class="pet__close" type="button" aria-label="隐藏桌宠">&times;</button>
+    <div class="pet__fx" aria-hidden="true"></div>
+    <div class="pet__zzz" aria-hidden="true"><i>z</i><i>z</i><i>Z</i></div>
+    <div class="pet__breathe"><div class="pet__lean"><div class="pet__squash">
+      <img class="pet__img" width="1164" height="2055" alt="" decoding="async" draggable="false">
+      <div class="pet__face" aria-hidden="true"></div>
+    </div></div></div>
+  </div>
+  <div class="pet__shadow" aria-hidden="true"></div>
+</div>
+<button id="pet-recall" class="pet-recall" type="button" hidden aria-label="把桌宠叫回来" title="把桌宠叫回来">🍔</button><script>window.__PET_CFG__={"enable":true,"mobile":true,"imgDir":"/img/pet/","paperWidth":880,"gap":12,"mobileMax":768,"lineMs":3600,"excludePaths":[],"sleepAfter":60000,"blink":true,"blinkMin":2600,"blinkMax":6800,"progress":true,"progressAt":[25,50,75,100],"copied":true,"lateNight":true,"stayReminder":20,"firstVisit":true,"greetByType":true,"dblclickTop":true,"edgeSnap":true,"resume":true,"resumeAfter":5200,"meow":true,"dates":{"01-01":"新年快乐！今年也要常来看看我呀","02-14":"今天是情人节，送你一颗心 ♥","05-20":"520 快乐~ 今天也要开开心心","10-01":"国庆快乐！出去玩记得带伞","12-24":"平安夜，苹果别忘了吃","12-25":"圣诞快乐！我在袜子里藏了颗糖"},"sprite":{"file":"hanbaobo","ext":"webp","widths":[512,256,128],"w":1164,"h":2055,"eyes":[[280,595,437,707],[601,614,762,727]],"skin":"#ffdfd4","cat":[790,1545,980,1775]},"lines":{"poke":["干嘛呀~","别戳我啦！","嗯？找我吗？","戳一下就够了哦"],"drag":["喂喂，要带我去哪儿？","别晃啦，头晕…"],"drop":["这里视野不错！","站稳了。"],"welcome":["你好呀，我是汉堡的小跟班~","欢迎来到汉堡的博客！"],"sleepy":["有点困了…眯一会儿","呼…先打个盹"],"wake":["！我没睡！","嗯？你叫我？","刚刚在闭目养神的…"],"leave":["那我先躲起来咯，想我了就点右下角的小汉堡","拜拜~ 右下角的小汉堡随时能叫我回来"],"back":["我回来啦！","又见面了~","想我了吧？"],"progress":["读了 25%，加油~","过半啦，喝口水？","75% 了，快看完了！","看完啦，厉害！"],"copied":["代码拿走不谢~","这段我也看不懂…","复制好了，去试试吧"],"lateNight":["这么晚还不睡？早点休息呀","夜深了，眼睛也要下班了"],"longStay":["都待了 20 分钟啦，起来走两步？","坐太久啦，站起来伸个懒腰~"],"top":["带你回顶部！","嗖——回顶上去了"],"first":["第一次见？我是汉堡的小跟班，双击我能回顶哦"],"meow":["喵~","喵？","喵喵！","喵呜——"],"resume":["上次读到 {pct}% 了，点这里接着看 →","接着上次的 {pct}% 继续？点我"],"resumeGo":["好嘞，接着看~","翻回去了，继续~"],"byType":{"post":["来读文章啦？我陪你~"],"home":["随便逛逛吧~"],"archive":["翻旧账时间到~"],"page":["这页也不错~"]}}};</script><script src="/js/pet.js?v=mvtc21ou" defer></script></body>
+</html>

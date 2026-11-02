@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0,  viewport-fit=cover" name="viewport" />
+    <meta name="keywords" content="CTF,PWN,题解,Kernel,ShadowLedger,脆皮大学生Pro Max,AI看了都沉默,易燃易爆易炸毛,高敏感低配置" />
+    <meta name="description" content="本篇文章《ShadowLedger KVM 内核题环境与工具说明》由Hanbaobo于2026-11-02 10:40:00发布，文章标签:CTF、PWN、题解、Kernel、ShadowLedger，归属WP分类，共计4100个字符，预计阅读时间9分钟。 " />
+    <meta name="hexo-theme-a4-plus" content="v1.0.1" />
+    <link rel="icon" href="/img/favicon-burger.ico">
+    <link rel="alternate" type="application/atom+xml" title="Hanbaobo&#39;s Blog" href="/atom.xml">
+    <title>ShadowLedger KVM 内核题环境与工具说明_Hanbaobo&#39;s Blog</title>
+
+    
+        
+<link rel="stylesheet" href="/css/reset.css">
+
+        
+<link rel="stylesheet" href="/css/markdown.css">
+
+        
+<link rel="stylesheet" href="/css/fonts.css">
+ 
+         <!--注意：首页既不是post也不是page-->
+        
+    
+    
+    
+<link rel="stylesheet" href="/css/ui.css">
+ 
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <style>
+        
+        
+    </style>
+    
+<meta name="generator" content="Hexo 6.3.0"><link rel="stylesheet" href="/css/pet.css?v=mvtc2so5"></head>
+    
+    <body>
+        <div class="paper">
+            
+            
+            
+            
+                <div class="shadow-drop-2-top paper-main">
+                    <div class="header">
+    <div class="header-container">
+        <div class="header-content">
+            <a class="logo" href="/">🎨Hanbaobo&#39;s Blog</a> 
+            <span class="description"></span> 
+        </div>
+    </div>
+    
+   
+    <ul class="nav">
+        
+            
+                
+                    <li><a href="/">首页</a></li>
+                
+            
+        
+            
+                
+                    <li><a href="/categories/">分类</a></li>
+                
+            
+        
+            
+                
+                    <li><a href="/about/">关于</a></li>
+                
+            
+        
+    </ul>
+</div> 
+        
+                    
+                    
+
+                    
+                    
+                    
+                    <!--说明是文章post页面-->
+                    
+                        <div class="post-main">
+    
+        <div class="post-main-title">
+            ShadowLedger KVM 内核题环境与工具说明
+        </div>
+        <div class="post-meta">
+            <i>
+                
+                    
+                        <span class="category">归属分类:
+                            
+                            
+                                <a href='/categories/WP/'>
+                                    WP
+                                </a>
+                            
+                        </span>
+                    
+                    
+                        <span class="tags">文章标签:
+                            
+                            
+                                <a href='/tags/CTF/'>
+                                    CTF
+                                </a>
+                            
+                                <a href='/tags/PWN/'>
+                                    PWN
+                                </a>
+                            
+                                <a href='/tags/%E9%A2%98%E8%A7%A3/'>
+                                    题解
+                                </a>
+                            
+                                <a href='/tags/Kernel/'>
+                                    Kernel
+                                </a>
+                            
+                                <a href='/tags/ShadowLedger/'>
+                                    ShadowLedger
+                                </a>
+                            
+                        </span>
+                    
+                
+            </i>
+        </div>
+        <div class="post-meta">
+            <i>
+            <span>
+                本文由
+                
+                    <span> Hanbaobo</span>
+                
+            </span>
+            <span>于2026-11-02 22:40:00发布</span>
+            
+            
+                <span>，共计
+                    <span>4100</span>
+                    个字符，预计阅读时间
+                    
+                    9
+                    分钟。 
+                </span>
+            
+            </i>
+        </div>
+    
+
+    <div class="post-md">
+        
+            
+                <ol class="post-toc"><li class="post-toc-item post-toc-level-1"><a class="post-toc-link" href="#ShadowLedger"><span class="post-toc-text">ShadowLedger</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Requirements"><span class="post-toc-text">Requirements</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Local-Docker"><span class="post-toc-text">Local Docker</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Host-QEMU"><span class="post-toc-text">Host QEMU</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Send-a-payload"><span class="post-toc-text">Send a payload</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Notes"><span class="post-toc-text">Notes</span></a></li></ol></li><li class="post-toc-item post-toc-level-1"><a class="post-toc-link" href="#shadowctl-usage"><span class="post-toc-text">shadowctl usage</span></a><ol class="post-toc-child"><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Scenario"><span class="post-toc-text">Scenario</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Commands"><span class="post-toc-text">Commands</span></a></li><li class="post-toc-item post-toc-level-2"><a class="post-toc-link" href="#Notes-1"><span class="post-toc-text">Notes</span></a></li></ol></li></ol>
+            
+            
+        
+        <blockquote>
+<p>本文整理自 GitHub 仓库 ctf-writeups。</p>
+</blockquote>
+<h1 id="ShadowLedger"><a href="#ShadowLedger" class="headerlink" title="ShadowLedger"></a>ShadowLedger</h1><p>ShadowLedger is a KVM-subsystem kernel pwn challenge. Inside the guest you<br>are a <code>nobody</code> tenant; the goal is to become root inside the guest and read<br><code>/flag</code>. The full scenario and the helper-tool notes are in<br><code>shadowctl_usage.md</code>.</p>
+<h2 id="Requirements"><a href="#Requirements" class="headerlink" title="Requirements"></a>Requirements</h2><ul>
+<li>x86-64 Linux with Docker</li>
+<li><code>/dev/kvm</code> on the host and nested virtualization enabled (the guest<br>creates its own VMs)</li>
+<li><code>nc</code></li>
+<li>Python 3 (for <code>upload.py</code>)</li>
+</ul>
+<h2 id="Local-Docker"><a href="#Local-Docker" class="headerlink" title="Local Docker"></a>Local Docker</h2><pre><code>docker build -t shadowledger .
+docker run -d --name shadowledger -p 1337:1337 --device /dev/kvm shadowledger
+nc 127.0.0.1 1337
+</code></pre>
+<p>Each TCP connection gets a fresh guest; a connection is limited to 600<br>seconds. The local <code>/flag</code> is <code>flag&#123;test&#125;</code>.</p>
+<h2 id="Host-QEMU"><a href="#Host-QEMU" class="headerlink" title="Host QEMU"></a>Host QEMU</h2><pre><code>./run.sh
+</code></pre>
+<h2 id="Send-a-payload"><a href="#Send-a-payload" class="headerlink" title="Send a payload"></a>Send a payload</h2><p>The guest has no network and no compiler, so the payload must be a static<br>binary:</p>
+<pre><code>gcc -static -O2 -o exp exp.c
+python3 upload.py 127.0.0.1 1337 ./exp
+</code></pre>
+<p>The script uses the guest’s built-in <code>upload</code> helper (base64 + gzip over<br>the serial line), writes <code>/tmp/exp</code>, and runs it.</p>
+<p>Manual alternative inside the guest shell:</p>
+<pre><code>upload
+# paste base64(gzip(exp)), at most 512 chars per line, end with: EOF
+/tmp/exp
+</code></pre>
+<p>Upload and run in the same connection: every connection is a fresh guest.</p>
+<h2 id="Notes"><a href="#Notes" class="headerlink" title="Notes"></a>Notes</h2><ul>
+<li>The guest <code>/flag</code> is <code>root:0400</code>; the exploit must obtain root.</li>
+<li><code>shadowctl help</code> &#x2F; <code>shadowctl demo</code> show the ordinary audit path. The<br>demo is a one-VM negative test and is expected to hit the role gates.</li>
+</ul>
+<hr>
+<h1 id="shadowctl-usage"><a href="#shadowctl-usage" class="headerlink" title="shadowctl usage"></a>shadowctl usage</h1><h2 id="Scenario"><a href="#Scenario" class="headerlink" title="Scenario"></a>Scenario</h2><p>ShadowLedger is a settlement ledger for private-memory receipts on a<br>multi-tenant KVM host. A tenant publishes a receipt for a private page, and<br>the receipt only becomes final after the other tenants witness, co-sign,<br>settle, accept, and fold it. The ledger records each step as an entry and<br>keeps the roles separate, so no single tenant can complete a transfer on<br>its own.</p>
+<p>Inside the guest you are given <code>/dev/kvm</code> and <code>/usr/bin/shadowctl</code>.<br>Goal: break out of the tenant context and read <code>/flag</code>.</p>
+<p>The ledger is exposed on KVM VM fds; the VM is intentionally minimal.</p>
+<h2 id="Commands"><a href="#Commands" class="headerlink" title="Commands"></a>Commands</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">shadowctl help</span><br><span class="line">shadowctl demo</span><br></pre></td></tr></table></figure>
+
+<h2 id="Notes-1"><a href="#Notes-1" class="headerlink" title="Notes"></a>Notes</h2><p><code>demo</code> opens one VM and files a short sequence itself. Some steps are<br>rejected by design; that is expected. The demo only illustrates the<br>interface and never escalates privileges.</p>
+<p>ShadowLedger windows include publish, certify, co-sign, settle, accept,<br>fold, renew and revoke. The helper is a reference for part of the ioctl<br>surface, nothing more.</p>
+
+    </div>
+
+    <div class="post-meta">
+        <i>
+            
+                
+                    <span>归属分类:
+                        
+                        
+                            <a href='/categories/WP/'>
+                                WP
+                            </a>
+                        
+                    </span>
+                
+                
+                    <span class="tags">文章标签:
+                        
+                        
+                            <a href='/tags/CTF/'>
+                                CTF
+                            </a>
+                        
+                            <a href='/tags/PWN/'>
+                                PWN
+                            </a>
+                        
+                            <a href='/tags/%E9%A2%98%E8%A7%A3/'>
+                                题解
+                            </a>
+                        
+                            <a href='/tags/Kernel/'>
+                                Kernel
+                            </a>
+                        
+                            <a href='/tags/ShadowLedger/'>
+                                ShadowLedger
+                            </a>
+                        
+                    </span>
+                
+            
+        </i>
+    </div>
+    
+        <div class="post-switch w-full flex justify-between">
+            <div class="flex items-center">
+                <span class="post-switch-lable">⨇上篇： </span>
+                
+                    没有了
+                
+            </div>
+            <div class="flex items-center">
+                <span class="post-switch-lable">⨈下篇： </span>
+                
+                    <a class="post-max-title" href="/2026/11/02/ironclad-writeup/">Ironclad 驱动逆向与漏洞分析</a>
+                
+            </div>
+        </div>
+    
+    
+        
+
+     
+</div>
+
+
+    
+<link rel="stylesheet" href="/css/toastify.css">
+
+    
+<script src="/js/toastify.js"></script>
+
+    
+<script src="/js/clipboard.min.js"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var parentElement = document.querySelector('.post-main');
+        parentElement.addEventListener('click', function(event) {
+          if (event.target.tagName === 'CODE') {
+            event.stopPropagation();
+          }
+        }, true);
+
+        var clipboard = new ClipboardJS('.post-main pre', {
+            target: function(trigger) {
+                return trigger.querySelector('.hljs') || trigger.querySelector('.language-none') || trigger.querySelector('.line');
+            }
+        });
+
+        clipboard.on('success', function(e) {
+            Toastify({
+                text: "复制成功",
+                position: 'center',
+                style: {
+                    background: '#0f3443',
+                }
+            }).showToast();
+            e.clearSelection();
+        });
+
+        clipboard.on('error', function(e) {
+            Toastify({
+                text: "复制失败",
+                gravity: "top",
+                position: 'center',
+                style: {
+                    background: '#0f3443'
+                }
+            }).showToast();
+            e.clearSelection();
+        });
+      });
+    </script>
+
+                    
+                    
+                    <div class="footer">
+    <div class="copyright flex justify-between"> 
+        <div class="flex"> 
+            <span> 
+                
+                © 2026 Hanbaobo 版权所有 &nbsp;
+            </span>
+            <span class="links">
+                
+                    
+                
+                    
+                       <i class="hidden-box"> / </i><a class="link" href="/contact/"> &nbsp;联系&nbsp; </a>
+                    
+                
+                    
+                       <i class="hidden-box"> / </i><a class="link" href="/support/"> &nbsp;支持&nbsp; </a>
+                    
+                
+            </span>
+        </div>
+        <div class="showTime flex items-center "> 
+            
+                <i class="time-box flex items-center"><span id="currentTime" class="fz-075 flex items-center">当前时间：2026/11/2 22:03:01</span></i>
+            
+        </div>
+    </div>
+    <!--这是指一条线往下的内容-->
+    <div class="footer-last">
+        <div class="flex items-center"> 
+            <span>欲速则一坨，慢工出烂活</span>
+        </div>
+        <div class="flex items-center"> 
+            
+        </div>
+    </div>
+</div>
+
+
+    
+<link rel="stylesheet" href="/css/a11y-dark.min.css">
+
+    
+<script src="/js/highlight.min.js"></script>
+
+    
+<script src="/js/highlightjs-line-numbers.js"></script>
+
+
+
+<script>
+    hljs.initHighlightingOnLoad();
+    hljs.initLineNumbersOnLoad();
+
+    // 定义一个函数来更新当前时间的显示
+    function updateCurrentTime() {
+        var currentTimeElement = document.getElementById('currentTime');
+        var currentTime = new Date().toLocaleString();
+        currentTimeElement.innerHTML = '当前时间：' + currentTime;
+    }
+
+    // 使用定时器每秒钟更新一次当前时间的显示
+    setInterval(updateCurrentTime, 1000);
+</script>
+                </div>
+            
+    <div id="pet-root">
+  <div class="pet__bubble" aria-hidden="true"></div>
+  <div class="pet__body" role="button" tabindex="0" aria-label="桌宠：点一下互动，可以拖动">
+    <button class="pet__close" type="button" aria-label="隐藏桌宠">&times;</button>
+    <div class="pet__fx" aria-hidden="true"></div>
+    <div class="pet__zzz" aria-hidden="true"><i>z</i><i>z</i><i>Z</i></div>
+    <div class="pet__breathe"><div class="pet__lean"><div class="pet__squash">
+      <img class="pet__img" width="1164" height="2055" alt="" decoding="async" draggable="false">
+      <div class="pet__face" aria-hidden="true"></div>
+    </div></div></div>
+  </div>
+  <div class="pet__shadow" aria-hidden="true"></div>
+</div>
+<button id="pet-recall" class="pet-recall" type="button" hidden aria-label="把桌宠叫回来" title="把桌宠叫回来">🍔</button><script>window.__PET_CFG__={"enable":true,"mobile":true,"imgDir":"/img/pet/","paperWidth":880,"gap":12,"mobileMax":768,"lineMs":3600,"excludePaths":[],"sleepAfter":60000,"blink":true,"blinkMin":2600,"blinkMax":6800,"progress":true,"progressAt":[25,50,75,100],"copied":true,"lateNight":true,"stayReminder":20,"firstVisit":true,"greetByType":true,"dblclickTop":true,"edgeSnap":true,"resume":true,"resumeAfter":5200,"meow":true,"dates":{"01-01":"新年快乐！今年也要常来看看我呀","02-14":"今天是情人节，送你一颗心 ♥","05-20":"520 快乐~ 今天也要开开心心","10-01":"国庆快乐！出去玩记得带伞","12-24":"平安夜，苹果别忘了吃","12-25":"圣诞快乐！我在袜子里藏了颗糖"},"sprite":{"file":"hanbaobo","ext":"webp","widths":[512,256,128],"w":1164,"h":2055,"eyes":[[280,595,437,707],[601,614,762,727]],"skin":"#ffdfd4","cat":[790,1545,980,1775]},"lines":{"poke":["干嘛呀~","别戳我啦！","嗯？找我吗？","戳一下就够了哦"],"drag":["喂喂，要带我去哪儿？","别晃啦，头晕…"],"drop":["这里视野不错！","站稳了。"],"welcome":["你好呀，我是汉堡的小跟班~","欢迎来到汉堡的博客！"],"sleepy":["有点困了…眯一会儿","呼…先打个盹"],"wake":["！我没睡！","嗯？你叫我？","刚刚在闭目养神的…"],"leave":["那我先躲起来咯，想我了就点右下角的小汉堡","拜拜~ 右下角的小汉堡随时能叫我回来"],"back":["我回来啦！","又见面了~","想我了吧？"],"progress":["读了 25%，加油~","过半啦，喝口水？","75% 了，快看完了！","看完啦，厉害！"],"copied":["代码拿走不谢~","这段我也看不懂…","复制好了，去试试吧"],"lateNight":["这么晚还不睡？早点休息呀","夜深了，眼睛也要下班了"],"longStay":["都待了 20 分钟啦，起来走两步？","坐太久啦，站起来伸个懒腰~"],"top":["带你回顶部！","嗖——回顶上去了"],"first":["第一次见？我是汉堡的小跟班，双击我能回顶哦"],"meow":["喵~","喵？","喵喵！","喵呜——"],"resume":["上次读到 {pct}% 了，点这里接着看 →","接着上次的 {pct}% 继续？点我"],"resumeGo":["好嘞，接着看~","翻回去了，继续~"],"byType":{"post":["来读文章啦？我陪你~"],"home":["随便逛逛吧~"],"archive":["翻旧账时间到~"],"page":["这页也不错~"]}}};</script><script src="/js/pet.js?v=mvtc21ou" defer></script></body>
+</html>
