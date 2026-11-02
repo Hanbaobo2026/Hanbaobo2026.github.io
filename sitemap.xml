@@ -172,13 +172,6 @@
   </url>
   
   <url>
-    <loc>https://blog.hanbaobo.cn/tags/%E6%97%A5%E5%B8%B8/</loc>
-    <lastmod>2026-11-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://blog.hanbaobo.cn/tags/ctf/</loc>
     <lastmod>2026-11-02</lastmod>
     <changefreq>weekly</changefreq>
@@ -200,14 +193,7 @@
   </url>
   
   <url>
-    <loc>https://blog.hanbaobo.cn/tags/CTF/</loc>
-    <lastmod>2026-11-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://blog.hanbaobo.cn/tags/%E8%8F%9C%E7%8B%97%E6%9D%AF/</loc>
+    <loc>https://blog.hanbaobo.cn/tags/%E6%97%A5%E5%B8%B8/</loc>
     <lastmod>2026-11-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -222,6 +208,20 @@
   
   <url>
     <loc>https://blog.hanbaobo.cn/tags/%E4%BF%A1%E4%BB%B6/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.hanbaobo.cn/tags/CTF/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.hanbaobo.cn/tags/%E8%8F%9C%E7%8B%97%E6%9D%AF/</loc>
     <lastmod>2026-11-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
