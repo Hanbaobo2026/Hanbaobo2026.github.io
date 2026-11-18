@@ -1,0 +1,395 @@
+/* =========================================================
+   pblog · effects
+   背景光晕 / 樱花 / 萤火虫 / 草丛 / 弹幕 / 点击粒子 / 开屏
+   ========================================================= */
+
+.site-gradient-layer {
+  position: fixed;
+  inset: -8%;
+  z-index: -8;
+  opacity: 0.55;
+  transform-origin: center;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 42% at 22% 18%, rgba(255, 255, 255, 0.7), transparent 70%),
+    radial-gradient(42% 40% at 76% 26%, rgba(244, 212, 181, 0.5), transparent 72%),
+    radial-gradient(48% 44% at 62% 82%, rgba(226, 183, 146, 0.42), transparent 74%);
+  animation: site-gradient-drift 30s ease-in-out infinite;
+}
+
+html.dark .site-gradient-layer {
+  opacity: 0.16;
+  background:
+    radial-gradient(46% 42% at 22% 18%, rgba(120, 84, 58, 0.55), transparent 70%),
+    radial-gradient(42% 40% at 76% 26%, rgba(96, 64, 44, 0.5), transparent 72%),
+    radial-gradient(48% 44% at 62% 82%, rgba(70, 46, 32, 0.6), transparent 74%);
+}
+
+.site-ambient-glow {
+  position: fixed;
+  inset: 0;
+  z-index: -7;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12% 10%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.34) 34%, transparent 72%),
+    radial-gradient(ellipse at 88% 90%, rgba(240, 205, 176, 0.28) 0%, rgba(240, 205, 176, 0.17) 34%, transparent 72%);
+}
+
+html.dark .site-ambient-glow {
+  background:
+    radial-gradient(ellipse at 12% 10%, rgba(120, 53, 15, 0.1) 0%, rgba(120, 53, 15, 0.06) 34%, transparent 72%),
+    radial-gradient(ellipse at 88% 90%, rgba(124, 45, 18, 0.1) 0%, rgba(124, 45, 18, 0.06) 34%, transparent 72%);
+}
+
+/* ---------- 特效容器 ---------- */
+
+.effect-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.effect-layer > div {
+  position: absolute;
+  inset: 0;
+}
+
+.effect-layer > .effect-grass {
+  top: auto;
+  bottom: 0;
+  height: 110px;
+}
+
+.effect-danmaku {
+  z-index: 1;
+}
+
+.effect-sakura {
+  z-index: 3;
+}
+
+.effect-fireflies {
+  z-index: 4;
+  display: none;
+}
+
+html.dark .effect-fireflies {
+  display: block;
+}
+
+html.dark .effect-sakura {
+  display: none;
+}
+
+/* ---------- 樱花 ---------- */
+
+.sakura-petal {
+  position: absolute;
+  top: -24px;
+  left: var(--left, 50%);
+  width: var(--size, 10px);
+  height: calc(var(--size, 10px) * 1.2);
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(135deg, #fcd5e3 0%, #f7a8c4 52%, #ec7ba6 100%);
+  opacity: 0.72;
+  animation: sakura-fall var(--duration, 14s) linear var(--delay, 0s) infinite;
+  will-change: transform;
+}
+
+html.dark .sakura-petal {
+  background: linear-gradient(135deg, #6d4a55 0%, #5a3a46 100%);
+  opacity: 0.3;
+}
+
+@keyframes sakura-fall {
+  0% { opacity: 0; transform: translate3d(0, -20px, 0) rotate(0deg); }
+  8%, 88% { opacity: 0.72; }
+  100% { opacity: 0; transform: translate3d(var(--drift, 40px), 104vh, 0) rotate(720deg); }
+}
+
+/* ---------- 萤火虫 ---------- */
+
+.firefly {
+  position: absolute;
+  top: var(--top, 40%);
+  left: var(--left, 40%);
+  animation-duration: var(--float, 16s);
+  animation-delay: var(--delay, 0s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.firefly i {
+  display: block;
+  width: var(--glow, 7px);
+  height: var(--glow, 7px);
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(220, 255, 220, 0.95) 0% 9%,
+    rgba(140, 240, 170, 0.8) 18%,
+    rgba(90, 220, 130, 0.36) 42%,
+    transparent 72%
+  );
+  filter: drop-shadow(0 0 6px rgba(140, 255, 180, 0.6));
+  animation: firefly-pulse var(--pulse, 3.4s) ease-in-out var(--delay, 0s) infinite;
+}
+
+.firefly.path-1 { animation-name: firefly-1; }
+.firefly.path-2 { animation-name: firefly-2; }
+.firefly.path-3 { animation-name: firefly-3; }
+.firefly.path-4 { animation-name: firefly-4; }
+
+@keyframes firefly-pulse {
+  0%, 100% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes firefly-1 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(8vw, -12vh, 0); }
+  66% { transform: translate3d(-4vw, -18vh, 0); }
+}
+
+@keyframes firefly-2 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(-10vw, 8vh, 0); }
+  66% { transform: translate3d(6vw, 12vh, 0); }
+}
+
+@keyframes firefly-3 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(12vw, 10vh, 0); }
+  66% { transform: translate3d(-8vw, 4vh, 0); }
+}
+
+@keyframes firefly-4 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(-12vw, -8vh, 0); }
+  66% { transform: translate3d(8vw, -12vh, 0); }
+}
+
+/* ---------- 草丛 ---------- */
+
+.grass-blade {
+  position: absolute;
+  bottom: 0;
+  left: var(--left, 50%);
+  width: var(--width, 8px);
+  height: var(--height, 46px);
+  border-radius: 50% 50% 0 0;
+  background: linear-gradient(to top, rgba(122, 160, 106, 0.34), rgba(122, 160, 106, 0.04));
+  transform-origin: bottom center;
+  animation: grass-sway var(--duration, 5s) ease-in-out var(--delay, 0s) infinite;
+}
+
+html.dark .grass-blade {
+  background: linear-gradient(to top, rgba(151, 124, 88, 0.24), rgba(151, 124, 88, 0.03));
+}
+
+@keyframes grass-sway {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* ---------- 弹幕 ---------- */
+
+.danmaku-track {
+  position: absolute;
+  right: -20%;
+  color: rgba(130, 116, 106, 0.12);
+  font-size: 0.9rem;
+  font-weight: 900;
+  white-space: nowrap;
+  user-select: none;
+  animation-name: danmaku-travel;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+html.dark .danmaku-track {
+  color: rgba(238, 233, 228, 0.055);
+}
+
+@keyframes danmaku-travel {
+  0% { opacity: 0; transform: translate3d(0, 0, 0); }
+  10%, 86% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate3d(calc(-100vw - 100%), 0, 0); }
+}
+
+/* ---------- 点击粒子 ---------- */
+
+.click-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- 开屏 ---------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  background: #fffaf4;
+  transition: opacity 520ms ease, visibility 520ms ease;
+}
+
+html.dark .splash {
+  background: #241b17;
+}
+
+.splash.is-done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.splash__mark {
+  font-size: 2rem;
+  animation: splash-pop 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.splash__title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  color: #3f352e;
+  animation: splash-pop 620ms cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+
+html.dark .splash__title {
+  color: #eee9e4;
+}
+
+.splash__bar {
+  width: 132px;
+  height: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(184, 111, 43, 0.16);
+}
+
+.splash__bar i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d68a3a, #b86f2b);
+  animation: splash-load 900ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes splash-pop {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splash-load {
+  from { width: 6%; }
+  to { width: 100%; }
+}
+
+@keyframes site-gradient-drift {
+  0%, 100% { transform: translate3d(-2%, -1%, 0) scale(1.04); }
+  50% { transform: translate3d(2%, 1%, 0) scale(1.04); }
+}
+
+/* ---------- 性能档位 ---------- */
+
+html.effects-low .site-gradient-layer {
+  animation-duration: 48s;
+  opacity: 0.4;
+}
+
+html.effects-low .panel {
+  backdrop-filter: blur(8px) saturate(110%);
+  -webkit-backdrop-filter: blur(8px) saturate(110%);
+}
+
+html.effects-low .firefly:nth-child(n + 9),
+html.effects-low .sakura-petal:nth-child(n + 8),
+html.effects-low .grass-blade:nth-child(n + 14),
+html.effects-low .danmaku-track:nth-child(n + 4) {
+  display: none;
+}
+
+html.effects-static .site-gradient-layer,
+html.effects-static .firefly,
+html.effects-static .firefly i,
+html.effects-static .sakura-petal,
+html.effects-static .grass-blade,
+html.effects-static .danmaku-track {
+  animation: none !important;
+}
+
+html.effects-static .effect-layer {
+  display: none;
+}
+
+html.effects-paused *,
+html.effects-paused *::before {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-gradient-layer,
+  .effect-layer *,
+  .splash *,
+  .hero__title,
+  .hero__sub {
+    animation: none !important;
+  }
+  .effect-layer {
+    display: none;
+  }
+}
+
+/* ---------- 打印 ---------- */
+
+@media print {
+  .navbar,
+  .footer,
+  .effect-layer,
+  .site-ambient-glow,
+  .site-gradient-layer,
+  .click-particles,
+  .back-to-top,
+  .toc-card,
+  .reading-progress,
+  .article-nav,
+  #pet-root,
+  .pet-recall {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .article-shell {
+    display: block;
+    padding: 0;
+  }
+  .panel {
+    box-shadow: none;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+  .article {
+    padding: 0;
+  }
+}
