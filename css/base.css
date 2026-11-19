@@ -5,8 +5,8 @@
 
 :root {
   --font-serif-stack: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
-  --font-sans-stack: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-mono-stack: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --font-sans-stack: var(--font-serif-stack);
+  --font-mono-stack: "Noto Sans Mono", "Noto Serif SC", "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 
   --bg-cream: #f7efe7;
   --bg-cream-soft: #fffaf4;

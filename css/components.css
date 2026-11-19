@@ -1100,6 +1100,7 @@ html.dark .article-content code {
 }
 
 .article-content pre {
+  font-family: var(--font-mono-stack);
   position: relative;
   margin: 1.3rem 0;
   padding: 42px 18px 18px;

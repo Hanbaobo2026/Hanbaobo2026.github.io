@@ -180,7 +180,7 @@
   z-index: 3;
   width: calc(var(--pet-h) * .24);
   height: calc(var(--pet-h) * .24);
-  font: 600 calc(var(--pet-h) * .095) / 1 Georgia, "Times New Roman", serif;
+  font: 600 calc(var(--pet-h) * .095) / 1 var(--font-serif-stack);
   color: #5b6a8c;
   opacity: 0;
   transition: opacity .5s ease;
